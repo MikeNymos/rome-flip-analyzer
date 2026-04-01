@@ -64,9 +64,7 @@ def render_search_panel():
             help="Elke pagina bevat ~25 resultaten.",
         )
         if st.button("Scrape & Analyseer", key="btn_search", use_container_width=True):
-            if not api_key:
-                st.error("Voer eerst een Apify API key in.")
-            elif not search_url:
+            if not search_url:
                 st.error("Voer een zoek-URL in.")
             else:
                 is_valid, url_type = validate_immobiliare_url(search_url)
@@ -74,10 +72,14 @@ def render_search_panel():
                     st.error("Ongeldige URL. Voer een Immobiliare.it URL in.")
                 else:
                     try:
-                        with st.spinner("Scraping via Apify..."):
-                            raw_results = run_immobiliare_scraper(api_key, search_url, max_pages, max_results)
+                        raw_results = run_immobiliare_scraper(api_key, search_url, max_pages, max_results)
                         if raw_results:
-                            new_listings = parse_json_data(raw_results)
+                            # Direct scraper returns pre-normalized dicts for search URLs;
+                            # Apify results (single listings) need parsing
+                            if url_type == "search":
+                                new_listings = raw_results
+                            else:
+                                new_listings = parse_json_data(raw_results)
                             st.session_state["last_search_type"] = "url"
                             st.session_state["last_search_query"] = search_url
                             st.success(f"{len(new_listings)} panden gevonden!")
