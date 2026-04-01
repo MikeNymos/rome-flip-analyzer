@@ -49,29 +49,39 @@ def render_property_detail(listing: dict, analysis: dict, score_data: dict, para
 
     st.divider()
 
-    # === 5. P&L TABEL ===
+    # === 5. VERKOOPSNELHEID + BETROUWBAARHEID ===
+    _render_speed_and_confidence(listing)
+
+    st.divider()
+
+    # === 6. P&L TABEL ===
     st.subheader("Winst & Verliesrekening")
     _render_pnl_table(analysis)
 
     st.divider()
 
-    # === 6. SCORE BREAKDOWN MET TOELICHTINGEN ===
+    # === 7. VERGELIJKBARE PANDEN (BATCH) ===
+    _render_comparables(listing)
+
+    st.divider()
+
+    # === 8. SCORE BREAKDOWN MET TOELICHTINGEN ===
     _render_score_breakdown(score_data)
 
     st.divider()
 
-    # === 7. BESCHRIJVINGSANALYSE ===
+    # === 9. BESCHRIJVINGSANALYSE ===
     _render_description_analysis(listing)
 
     st.divider()
 
-    # === 8. GEVOELIGHEIDSANALYSE ===
+    # === 10. GEVOELIGHEIDSANALYSE ===
     st.subheader("Gevoeligheidsanalyse")
     _render_sensitivity(listing, params, overrides or None)
 
     st.divider()
 
-    # === 9. ACTIES ===
+    # === 11. ACTIES ===
     _render_actions(listing, analysis, score_data, params)
 
 
@@ -478,6 +488,92 @@ def _render_score_radar(score_data: dict):
         margin=dict(l=40, r=40, t=40, b=40),
     )
     st.plotly_chart(fig, use_container_width=True)
+
+
+def _render_speed_and_confidence(listing: dict):
+    """Toont verkoopsnelheid en betrouwbaarheidsniveau."""
+    speed = listing.get("selling_speed")
+    confidence = listing.get("confidence")
+    comparables = listing.get("comparables")
+
+    if not speed and not confidence:
+        return
+
+    st.subheader("Verkoopsnelheid & Betrouwbaarheid")
+    col1, col2, col3 = st.columns(3)
+
+    if speed:
+        with col1:
+            color = speed.get("speed_color", "gray")
+            st.markdown(
+                f'<div style="text-align:center;padding:16px;background:{color}15;'
+                f'border:2px solid {color};border-radius:8px;">'
+                f'<h2 style="margin:0;color:{color};">{speed["estimated_months"]} mnd</h2>'
+                f'<p style="margin:4px 0 0;font-weight:bold;color:{color};">{speed["speed"]}</p>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            st.caption(speed.get("description", ""))
+
+    if confidence:
+        with col2:
+            c = confidence.get("color", "gray")
+            st.markdown(
+                f'<div style="text-align:center;padding:16px;background:{c}15;'
+                f'border:2px solid {c};border-radius:8px;">'
+                f'<h2 style="margin:0;color:{c};">{confidence["level"]}</h2>'
+                f'<p style="margin:4px 0 0;font-size:0.85em;">{confidence["explanation"]}</p>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+    if comparables:
+        with col3:
+            total = comparables.get("batch_total", 1)
+            rank = comparables.get("batch_rank_score", 1)
+            st.markdown(
+                f'<div style="text-align:center;padding:16px;background:#f8f9fa;'
+                f'border:1px solid #e9ecef;border-radius:8px;">'
+                f'<h2 style="margin:0;color:#1a365d;">#{rank}/{total}</h2>'
+                f'<p style="margin:4px 0 0;font-weight:bold;color:#555;">Rangpositie (score)</p>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            delta = comparables.get("batch_delta_pct")
+            if delta is not None:
+                sign = "+" if delta > 0 else ""
+                st.caption(f"Prijs/m2 {sign}{delta:.1f}% vs. mediaan batch")
+
+    # Snelheidsaanpassingen
+    if speed and speed.get("adjustments"):
+        with st.expander("Verkoopsnelheid details"):
+            for adj in speed["adjustments"]:
+                st.markdown(f"- {adj}")
+
+
+def _render_comparables(listing: dict):
+    """Toont vergelijkbare panden uit de batch."""
+    comparables = listing.get("comparables")
+    if not comparables:
+        return
+
+    direct = comparables.get("direct_comparables", [])
+    if not direct:
+        return
+
+    st.subheader(f"Vergelijkbare Panden ({len(direct)} gevonden)")
+
+    for comp in direct[:5]:
+        sim_pct = comp["similarity"] * 100
+        col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+        with col1:
+            st.markdown(f"**{comp.get('zone', '?')}**")
+        with col2:
+            st.metric("Prijs/m2", f"EUR {comp.get('price_per_m2', 0):,.0f}")
+        with col3:
+            st.metric("Score", comp.get("flip_score", "?"))
+        with col4:
+            st.metric("Similarity", f"{sim_pct:.0f}%")
 
 
 def _render_risk_flags(score_data: dict):

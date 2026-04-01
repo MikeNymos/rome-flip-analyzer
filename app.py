@@ -9,6 +9,12 @@ import streamlit as st
 from config import DEFAULT_PARAMS
 from models.financial import calculate_investment_analysis
 from models.scoring import calculate_flip_score
+from models.comparables import (
+    calculate_relative_position,
+    estimate_selling_speed,
+    calculate_confidence_level,
+)
+from services.feature_extractor import extract_property_features
 from components.dashboard import render_dashboard
 from components.property_detail import render_property_detail
 from components.settings_panel import render_settings
@@ -71,14 +77,18 @@ def init_session_state():
 def analyze_listings(listings: list[dict], params: dict) -> list[dict]:
     """
     Draait de volledige analyse op alle listings:
-    financieel model + scoring + locatie + verkoopprijsschatting.
+    feature extractie + financieel model + scoring + comparables.
     """
     analyzed = []
     for listing in listings:
-        # Financiële analyse (inclusief locatie + verkoopprijsschatting)
+        # 1. Extract NLP features (terras, lift, vincolo, etc.)
+        if not listing.get("features"):
+            listing["features"] = extract_property_features(listing)
+
+        # 2. Financiële analyse (inclusief locatie + verkoopprijsschatting)
         analysis = calculate_investment_analysis(listing, params)
 
-        # Flip Score
+        # 3. Flip Score
         score_data = calculate_flip_score(listing, analysis, params)
 
         # Voeg analyse-resultaten toe aan listing
@@ -112,6 +122,18 @@ def analyze_listings(listings: list[dict], params: dict) -> list[dict]:
 
     # Sorteer op flip score (aflopend)
     analyzed.sort(key=lambda x: x["flip_score"], reverse=True)
+
+    # 4. Post-sort: batch comparables, selling speed, confidence
+    for enriched in analyzed:
+        comparables = calculate_relative_position(enriched, analyzed)
+        enriched["comparables"] = comparables
+
+        selling_speed = estimate_selling_speed(enriched, enriched["analysis"], comparables)
+        enriched["selling_speed"] = selling_speed
+
+        confidence = calculate_confidence_level(comparables)
+        enriched["confidence"] = confidence
+
     return analyzed
 
 

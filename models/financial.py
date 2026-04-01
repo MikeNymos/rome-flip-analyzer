@@ -7,6 +7,7 @@ from __future__ import annotations
 from data.neighborhoods import get_neighborhood_benchmarks
 from models.location import assess_location_quality
 from models.sale_price import estimate_sale_price
+from services.feature_extractor import extract_property_features
 
 
 def calculate_investment_analysis(
@@ -37,10 +38,16 @@ def calculate_investment_analysis(
     surface = listing["surface_m2"]
     price = listing["price"]
 
+    # Extract NLP features (als nog niet aanwezig)
+    features = listing.get("features")
+    if not features:
+        features = extract_property_features(listing)
+        listing["features"] = features
+
     # Haal benchmark- en analysedata op
     neighborhood_data = get_neighborhood_benchmarks(listing.get("zone", ""))
     location_quality = assess_location_quality(listing, neighborhood_data)
-    sale_price_data = estimate_sale_price(listing, neighborhood_data, location_quality)
+    sale_price_data = estimate_sale_price(listing, neighborhood_data, location_quality, features)
 
     # Per-pand verkoopprijsoverschrijving
     if overrides.get("sale_price_per_m2_mid"):
