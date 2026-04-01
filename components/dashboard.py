@@ -3,7 +3,9 @@ Hoofd-dashboard view met samenvattingskaarten, visuele property cards en charts.
 """
 from __future__ import annotations
 
+import json
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -73,6 +75,58 @@ def _render_property_cards(listings: list[dict]) -> int | None:
     return selected_idx
 
 
+def _render_image_carousel(images: list[str], idx: int):
+    """Render an interactive image carousel with arrow navigation."""
+    imgs = images[:15]  # Cap for performance
+    total = len(images)
+    imgs_json = json.dumps(imgs)
+
+    html = f"""
+    <div id="carousel-{idx}" style="position:relative;width:100%;height:200px;
+         border-radius:6px;overflow:hidden;background:#e9ecef;">
+      <img id="img-{idx}" src="{imgs[0]}"
+           style="width:100%;height:200px;object-fit:cover;" loading="lazy">
+      <button onclick="nav({idx},-1)" style="position:absolute;left:0;top:0;width:36px;
+              height:100%;background:rgba(0,0,0,0.25);border:none;color:#fff;
+              font-size:22px;cursor:pointer;opacity:0;transition:opacity .2s;"
+              onmouseenter="this.style.opacity='1'"
+              onmouseleave="this.style.opacity='0'"
+              id="prev-{idx}">&lsaquo;</button>
+      <button onclick="nav({idx},1)" style="position:absolute;right:0;top:0;width:36px;
+              height:100%;background:rgba(0,0,0,0.25);border:none;color:#fff;
+              font-size:22px;cursor:pointer;opacity:0;transition:opacity .2s;"
+              onmouseenter="this.style.opacity='1'"
+              onmouseleave="this.style.opacity='0'"
+              id="next-{idx}">&rsaquo;</button>
+      <span id="counter-{idx}" style="position:absolute;bottom:6px;right:8px;
+            background:rgba(0,0,0,0.55);color:#fff;padding:2px 8px;border-radius:10px;
+            font-size:12px;">1 / {total}</span>
+    </div>
+    <script>
+      var imgs_{idx} = {imgs_json};
+      var cur_{idx} = 0;
+      var total_{idx} = {total};
+      function nav(id, dir) {{
+        cur_{idx} = (cur_{idx} + dir + imgs_{idx}.length) % imgs_{idx}.length;
+        document.getElementById('img-'+id).src = imgs_{idx}[cur_{idx}];
+        document.getElementById('counter-'+id).textContent =
+          (cur_{idx}+1) + ' / ' + total_{idx};
+      }}
+      // Show arrows on hover over the container
+      var c = document.getElementById('carousel-{idx}');
+      c.addEventListener('mouseenter', function() {{
+        document.getElementById('prev-{idx}').style.opacity = '1';
+        document.getElementById('next-{idx}').style.opacity = '1';
+      }});
+      c.addEventListener('mouseleave', function() {{
+        document.getElementById('prev-{idx}').style.opacity = '0';
+        document.getElementById('next-{idx}').style.opacity = '0';
+      }});
+    </script>
+    """
+    components.html(html, height=210)
+
+
 def _render_single_card(listing: dict, idx: int) -> bool:
     """Rendert een enkele property card. Retourneert True als geselecteerd."""
     score = listing.get("flip_score", 0)
@@ -90,13 +144,9 @@ def _render_single_card(listing: dict, idx: int) -> bool:
     selected = False
 
     with st.container(border=True):
-        # Thumbnail
+        # Photo carousel or placeholder
         if images:
-            st.markdown(
-                f'<img src="{images[0]}" style="width:100%;height:200px;object-fit:cover;'
-                f'border-radius:6px;" loading="lazy">',
-                unsafe_allow_html=True,
-            )
+            _render_image_carousel(images, idx)
         else:
             st.markdown(
                 '<div style="background:#e9ecef;height:200px;display:flex;'
