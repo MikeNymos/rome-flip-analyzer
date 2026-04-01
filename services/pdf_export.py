@@ -116,7 +116,7 @@ def generate_property_report(listing: dict, analysis: dict, score_data: dict, pa
     pdf.add_page()
     _render_analysis_page(pdf, listing, analysis, score_data, params)
 
-    return pdf.output()
+    return bytes(pdf.output())
 
 
 def generate_batch_report(analyzed_listings: list[dict], params: dict) -> bytes:
@@ -234,7 +234,7 @@ def generate_batch_report(analyzed_listings: list[dict], params: dict) -> bytes:
 
             pdf.ln(4)
 
-    return pdf.output()
+    return bytes(pdf.output())
 
 
 def _render_summary_page(pdf: FlipReportPDF, listing: dict, analysis: dict, score_data: dict):
