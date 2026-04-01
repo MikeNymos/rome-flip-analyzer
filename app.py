@@ -14,7 +14,11 @@ from components.property_detail import render_property_detail
 from components.settings_panel import render_settings
 from components.search_panel import render_search_panel, render_filters
 from components.neighborhood_view import render_neighborhood_view
+from components.auth_page import render_auth_page
+from components.search_history import render_search_history
 from services.pdf_export import generate_property_report, generate_batch_report
+from services.auth import is_logged_in, get_current_user, logout, restore_session
+from services.database import save_search
 
 
 # === PAGINA CONFIGURATIE ===
@@ -105,10 +109,28 @@ def analyze_listings(listings: list[dict], params: dict) -> list[dict]:
     return analyzed
 
 
+def _has_supabase_config() -> bool:
+    """Controleert of Supabase credentials geconfigureerd zijn."""
+    try:
+        return bool(st.secrets.get("supabase", {}).get("url"))
+    except (AttributeError, FileNotFoundError):
+        return False
+
+
 def main():
     """Hoofdfunctie van de applicatie."""
     init_session_state()
+
+    # === AUTH GATE ===
+    auth_enabled = _has_supabase_config()
+    if auth_enabled:
+        restore_session()
+        if not is_logged_in():
+            render_auth_page()
+            return
+
     params = st.session_state["params"]
+    user = get_current_user() if auth_enabled else None
 
     # === SIDEBAR ===
     st.sidebar.markdown(
@@ -116,6 +138,13 @@ def main():
         "<p style='color: #c9a026; font-size: 0.9em; margin-top: 0;'>Vastgoed Investeringsanalyse</p>",
         unsafe_allow_html=True,
     )
+
+    # User info + uitlogknop
+    if user:
+        st.sidebar.caption(f"Ingelogd als: {user['email']}")
+        if st.sidebar.button("Uitloggen", use_container_width=True):
+            logout()
+            st.rerun()
 
     # Zoek-/invoerpaneel
     new_listings = render_search_panel()
@@ -127,6 +156,27 @@ def main():
             st.session_state["analyzed_listings"] = analyze_listings(new_listings, params)
         st.session_state["selected_property_idx"] = None
         st.session_state["property_overrides"] = {}
+
+        # Auto-save naar database
+        if user:
+            search_type = st.session_state.get("last_search_type", "url")
+            search_query = st.session_state.get("last_search_query", "")
+            save_search(
+                user_id=user["id"],
+                search_type=search_type,
+                search_query=search_query,
+                analyzed_listings=st.session_state["analyzed_listings"],
+            )
+
+    # Zoekgeschiedenis
+    if auth_enabled:
+        history_listings = render_search_history()
+        if history_listings:
+            st.session_state["analyzed_listings"] = history_listings
+            st.session_state["raw_listings"] = history_listings
+            st.session_state["selected_property_idx"] = None
+            st.session_state["property_overrides"] = {}
+            st.rerun()
 
     # Filter bestaande resultaten
     analyzed = st.session_state.get("analyzed_listings", [])

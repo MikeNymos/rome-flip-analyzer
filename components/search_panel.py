@@ -78,6 +78,8 @@ def render_search_panel():
                             raw_results = run_immobiliare_scraper(api_key, search_url, max_pages, max_results)
                         if raw_results:
                             new_listings = parse_json_data(raw_results)
+                            st.session_state["last_search_type"] = "url"
+                            st.session_state["last_search_query"] = search_url
                             st.success(f"{len(new_listings)} panden gevonden!")
                         else:
                             st.warning("Geen resultaten gevonden.")
@@ -108,6 +110,8 @@ def render_search_panel():
                             raw_results = run_immobiliare_scraper(api_key, listing_url, max_pages=1)
                         if raw_results:
                             new_listings = parse_json_data(raw_results)
+                            st.session_state["last_search_type"] = "single"
+                            st.session_state["last_search_query"] = listing_url
                             st.success("Pand succesvol opgehaald!")
                         else:
                             st.warning("Geen data gevonden voor dit pand.")
@@ -130,6 +134,8 @@ def render_search_panel():
                 try:
                     new_listings = parse_uploaded_file(uploaded_file)
                     if new_listings:
+                        st.session_state["last_search_type"] = "upload"
+                        st.session_state["last_search_query"] = uploaded_file.name
                         st.success(f"{len(new_listings)} panden geladen!")
                     else:
                         st.warning("Geen geldige panden gevonden in bestand.")
@@ -146,6 +152,8 @@ def render_search_panel():
             with open(sample_path, "r") as f:
                 sample_data = json_module.load(f)
             new_listings = parse_json_data(sample_data)
+            st.session_state["last_search_type"] = "test"
+            st.session_state["last_search_query"] = "sample_data.json"
             st.sidebar.success(f"{len(new_listings)} testpanden geladen!")
         except FileNotFoundError:
             st.sidebar.error("sample_data.json niet gevonden.")
