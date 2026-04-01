@@ -42,6 +42,10 @@ st.markdown("""
     div[data-testid="stMetric"] label { color: #1a365d; }
     .stTabs [data-baseweb="tab-list"] { gap: 8px; }
     .stTabs [data-baseweb="tab"] { padding: 8px 20px; }
+    /* Hide full-width container padding for tab buttons */
+    div[data-testid="stHorizontalBlock"] > div > div > button[kind="secondary"] {
+        border-color: #e0e0e0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -56,6 +60,8 @@ def init_session_state():
         st.session_state["analyzed_listings"] = []
     if "selected_property_idx" not in st.session_state:
         st.session_state["selected_property_idx"] = None
+    if "active_tab" not in st.session_state:
+        st.session_state["active_tab"] = "Dashboard"
     if "export_pdf" not in st.session_state:
         st.session_state["export_pdf"] = False
     if "property_overrides" not in st.session_state:
@@ -186,20 +192,32 @@ def main():
         filtered = []
 
     # === HOOFDGEBIED ===
-    tab_dashboard, tab_detail, tab_settings, tab_neighborhoods = st.tabs([
-        "Dashboard",
-        "Pand Detail",
-        "Instellingen",
-        "Wijkdata",
-    ])
+    TAB_NAMES = ["Dashboard", "Pand Detail", "Instellingen", "Wijkdata"]
+    active_tab = st.session_state.get("active_tab", "Dashboard")
+    if active_tab not in TAB_NAMES:
+        active_tab = "Dashboard"
+
+    # Tab bar
+    tab_cols = st.columns(len(TAB_NAMES))
+    for i, name in enumerate(TAB_NAMES):
+        with tab_cols[i]:
+            is_active = name == active_tab
+            btn_type = "primary" if is_active else "secondary"
+            if st.button(name, key=f"tab_{name}", use_container_width=True, type=btn_type):
+                if not is_active:
+                    st.session_state["active_tab"] = name
+                    st.rerun()
+
+    st.divider()
 
     # --- TAB 1: DASHBOARD ---
-    with tab_dashboard:
+    if active_tab == "Dashboard":
         if filtered:
             selected_idx = render_dashboard(filtered)
             if selected_idx is not None:
                 st.session_state["selected_property_idx"] = selected_idx
-                st.info("Klik op het tabblad **Pand Detail** om de volledige analyse te bekijken.")
+                st.session_state["active_tab"] = "Pand Detail"
+                st.rerun()
 
             # Batch PDF export
             st.divider()
@@ -235,10 +253,13 @@ def main():
             )
 
     # --- TAB 2: PAND DETAIL ---
-    with tab_detail:
+    elif active_tab == "Pand Detail":
         idx = st.session_state.get("selected_property_idx")
 
         if analyzed:
+            if st.button("← Terug naar Dashboard", key="back_to_dashboard"):
+                st.session_state["active_tab"] = "Dashboard"
+                st.rerun()
             options = [
                 f"#{i+1} -- Score {l['flip_score']} -- {l.get('zone', 'Onbekend')} -- {l.get('price', 0):,.0f} EUR"
                 for i, l in enumerate(analyzed)
@@ -278,7 +299,7 @@ def main():
             st.info("Laad eerst data via de zijbalk om een pand te analyseren.")
 
     # --- TAB 3: INSTELLINGEN ---
-    with tab_settings:
+    elif active_tab == "Instellingen":
         updated_params = render_settings(params)
         if updated_params != params:
             st.session_state["params"] = updated_params
@@ -289,7 +310,7 @@ def main():
                     )
 
     # --- TAB 4: WIJKDATA ---
-    with tab_neighborhoods:
+    elif active_tab == "Wijkdata":
         render_neighborhood_view()
 
 
