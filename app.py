@@ -337,15 +337,8 @@ def main():
             selected_idx = options.index(selected_option)
             listing = analyzed[selected_idx]
 
-            # Check per-pand overrides
-            overrides = st.session_state.get("property_overrides", {}).get(listing.get("url", ""), {})
-
-            if overrides:
-                recalc_analysis = calculate_investment_analysis(listing, params, overrides)
-                recalc_score = calculate_flip_score(listing, recalc_analysis, params)
-                render_property_detail(listing, recalc_analysis, recalc_score, params)
-            else:
-                render_property_detail(listing, listing["analysis"], listing["score_data"], params)
+            # render_property_detail handles slider overrides + recalculation internally
+            render_property_detail(listing, listing["analysis"], listing["score_data"], params)
 
             # PDF export
             if st.session_state.get("export_pdf"):

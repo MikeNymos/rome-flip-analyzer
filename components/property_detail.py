@@ -12,7 +12,8 @@ import plotly.graph_objects as go
 from utils.helpers import format_eur, format_pct, format_m2, format_eur_per_m2, score_color
 from config import get_score_label
 from data.constants import CONDITION_MAP
-from models.financial import calculate_sensitivity
+from models.financial import calculate_investment_analysis, calculate_sensitivity
+from models.scoring import calculate_flip_score
 from models.risk import analyze_description
 
 
@@ -26,7 +27,13 @@ def render_property_detail(listing: dict, analysis: dict, score_data: dict, para
     st.divider()
 
     # === 2. INTERACTIEVE SLIDERS ===
-    _render_parameter_sliders(listing, analysis, params)
+    # Sliders use the ORIGINAL analysis for defaults, return current overrides
+    overrides = _render_parameter_sliders(listing, analysis, params)
+
+    # Recalculate with current slider values so P&L etc. update immediately
+    if overrides:
+        analysis = calculate_investment_analysis(listing, params, overrides)
+        score_data = calculate_flip_score(listing, analysis, params)
 
     st.divider()
 
@@ -60,7 +67,6 @@ def render_property_detail(listing: dict, analysis: dict, score_data: dict, para
 
     # === 8. GEVOELIGHEIDSANALYSE ===
     st.subheader("Gevoeligheidsanalyse")
-    overrides = st.session_state.get("property_overrides", {}).get(listing.get("url", ""), {})
     _render_sensitivity(listing, params, overrides or None)
 
     st.divider()
@@ -197,12 +203,18 @@ def _render_header(listing: dict, score_data: dict):
 # INTERACTIEVE PARAMETER SLIDERS
 # ============================================================
 
-def _render_parameter_sliders(listing: dict, analysis: dict, params: dict):
-    """Interactieve sliders voor per-pand parameter aanpassing."""
+def _render_parameter_sliders(listing: dict, analysis: dict, params: dict) -> dict | None:
+    """
+    Interactieve sliders voor per-pand parameter aanpassing.
+    Returns overrides dict if sliders differ from defaults, else None.
+    """
     sale_estimate = analysis.get("sale_price_estimate", {})
     final_prices = sale_estimate.get("final_price_per_m2", {})
 
-    current_overrides = st.session_state.get("property_overrides", {}).get(listing.get("url", ""), {})
+    # Defaults from original analysis
+    default_reno = params["renovation_cost_min_per_m2"]
+    default_sale = int(final_prices.get("mid", 6000))
+    default_discount = int(params["asking_price_discount"] * 100)
 
     with st.expander("Parameters aanpassen (dit pand)", expanded=False):
         st.caption("Pas de sliders aan om de berekeningen voor dit specifieke pand te wijzigen.")
@@ -212,44 +224,47 @@ def _render_parameter_sliders(listing: dict, analysis: dict, params: dict):
             reno_cost = st.slider(
                 "Renovatiekosten (EUR/m2)",
                 min_value=800, max_value=2500,
-                value=current_overrides.get("renovation_cost_per_m2", params["renovation_cost_min_per_m2"]),
+                value=default_reno,
                 step=50,
                 key=f"slider_reno_{listing.get('url', '')}",
             )
 
         with col2:
-            default_sale = current_overrides.get("sale_price_per_m2_mid", final_prices.get("mid", 6000))
             sale_price = st.slider(
                 "Verkoopprijs (EUR/m2)",
                 min_value=3000, max_value=15000,
-                value=int(default_sale),
+                value=default_sale,
                 step=100,
                 key=f"slider_sale_{listing.get('url', '')}",
             )
 
         with col3:
-            default_discount = current_overrides.get(
-                "asking_price_discount", params["asking_price_discount"]
-            )
             discount = st.slider(
                 "Onderhandelingskorting (%)",
                 min_value=0, max_value=20,
-                value=int(default_discount * 100),
+                value=default_discount,
                 step=1,
                 key=f"slider_discount_{listing.get('url', '')}",
             )
 
-        overrides = {
-            "renovation_cost_per_m2": reno_cost,
-            "sale_price_per_m2_mid": sale_price,
-            "sale_price_per_m2_low": int(sale_price * 0.88),
-            "sale_price_per_m2_high": int(sale_price * 1.12),
-            "asking_price_discount": discount / 100,
-        }
+    # Check if any slider was changed from defaults
+    changed = (reno_cost != default_reno or sale_price != default_sale or discount != default_discount)
 
-        # Sla op in session state
-        key = listing.get("url", str(id(listing)))
-        st.session_state.setdefault("property_overrides", {})[key] = overrides
+    if not changed:
+        return None
+
+    overrides = {
+        "renovation_cost_per_m2": reno_cost,
+        "sale_price_per_m2_mid": sale_price,
+        "sale_price_per_m2_low": int(sale_price * 0.88),
+        "sale_price_per_m2_high": int(sale_price * 1.12),
+        "asking_price_discount": discount / 100,
+    }
+
+    # Sla op in session state
+    key = listing.get("url", str(id(listing)))
+    st.session_state.setdefault("property_overrides", {})[key] = overrides
+    return overrides
 
 
 # ============================================================
