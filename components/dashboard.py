@@ -4,6 +4,7 @@ Hoofd-dashboard view met samenvattingskaarten, visuele property cards en charts.
 from __future__ import annotations
 
 import json
+from urllib.parse import quote
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
@@ -186,8 +187,22 @@ def _render_single_card(listing: dict, idx: int) -> bool:
         # Knoppen
         col_a, col_b = st.columns(2)
         with col_a:
-            if st.button("Bekijk detail", key=f"card_detail_{idx}", use_container_width=True):
-                selected = True
+            search_id = st.session_state.get("last_search_id")
+            listing_url = listing.get("url", "")
+            if search_id and listing_url:
+                encoded_url = quote(listing_url, safe="")
+                st.markdown(
+                    f'<a href="?sid={search_id}&url={encoded_url}" target="_blank" '
+                    f'style="display:block;text-align:center;padding:0.4rem 0.75rem;'
+                    f'background-color:white;border:1px solid rgba(49,51,63,0.2);'
+                    f'border-radius:0.5rem;color:rgb(49,51,63);font-size:14px;'
+                    f'text-decoration:none;line-height:1.6;font-weight:400;"'
+                    f'>Bekijk detail</a>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                if st.button("Bekijk detail", key=f"card_detail_{idx}", use_container_width=True):
+                    selected = True
         with col_b:
             url = listing.get("url", "")
             if url:

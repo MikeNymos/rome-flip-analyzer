@@ -123,9 +123,72 @@ def _has_supabase_config() -> bool:
         return False
 
 
+def _handle_direct_detail_link() -> bool:
+    """
+    Handle direct link to property detail (opened in a new browser tab).
+    URL format: ?sid=<search_id>&url=<encoded_listing_url>
+    Returns True if handled (caller should return early).
+    """
+    from urllib.parse import unquote
+
+    qp = st.query_params
+    sid = qp.get("sid")
+    target_url = qp.get("url")
+    if not sid or not target_url:
+        return False
+
+    target_url = unquote(target_url)
+
+    try:
+        from services.database import get_saved_listings
+        listings = get_saved_listings(sid)
+    except Exception:
+        listings = []
+
+    if not listings:
+        st.error("Zoekresultaten niet gevonden of verlopen.")
+        return True
+
+    listing = next((l for l in listings if l.get("url") == target_url), None)
+    if not listing:
+        st.error("Pand niet gevonden in de zoekresultaten.")
+        return True
+
+    analysis = listing.get("analysis", {})
+    score_data = listing.get("score_data", {})
+    params = DEFAULT_PARAMS.copy()
+
+    # Minimal header
+    st.markdown(
+        "<h2 style='color: #1a365d; margin-bottom: 0;'>Rome Flip Analyzer</h2>"
+        "<p style='color: #c9a026; font-size: 0.9em; margin-top: 0;'>Pand Detail</p>",
+        unsafe_allow_html=True,
+    )
+    st.divider()
+
+    render_property_detail(listing, analysis, score_data, params)
+
+    # PDF export
+    st.divider()
+    if st.button("Exporteer PDF"):
+        with st.spinner("PDF genereren..."):
+            pdf_bytes = generate_property_report(listing, analysis, score_data, params)
+        st.download_button(
+            label="Download PDF Rapport",
+            data=pdf_bytes,
+            file_name=f"flip_analyse_{listing.get('zone', 'pand')}_{listing.get('price', 0):.0f}.pdf",
+            mime="application/pdf",
+        )
+    return True
+
+
 def main():
     """Hoofdfunctie van de applicatie."""
     init_session_state()
+
+    # === DIRECT DETAIL LINK (new browser tab) — no auth needed ===
+    if _handle_direct_detail_link():
+        return
 
     # === AUTH GATE ===
     auth_enabled = _has_supabase_config()
@@ -167,12 +230,14 @@ def main():
         if user:
             search_type = st.session_state.get("last_search_type", "url")
             search_query = st.session_state.get("last_search_query", "")
-            save_search(
+            search_id = save_search(
                 user_id=user["id"],
                 search_type=search_type,
                 search_query=search_query,
                 analyzed_listings=st.session_state["analyzed_listings"],
             )
+            if search_id:
+                st.session_state["last_search_id"] = search_id
 
     # Zoekgeschiedenis
     if auth_enabled:

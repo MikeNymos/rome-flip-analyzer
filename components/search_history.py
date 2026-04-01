@@ -85,6 +85,7 @@ def render_search_history() -> list[dict] | None:
                 if st.button("Laden", key=f"load_{search_id}", use_container_width=True):
                     listings = get_saved_listings(search_id)
                     if listings:
+                        st.session_state["last_search_id"] = search_id
                         return listings
                     else:
                         st.error("Geen listings gevonden.")
