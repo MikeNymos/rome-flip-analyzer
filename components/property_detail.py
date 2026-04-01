@@ -4,7 +4,9 @@ onderbouwde verkoopprijsschatting, locatieanalyse en volledige P&L.
 """
 from __future__ import annotations
 
+import json
 import streamlit as st
+import streamlit.components.v1 as components
 import plotly.graph_objects as go
 
 from utils.helpers import format_eur, format_pct, format_m2, format_eur_per_m2, score_color
@@ -72,27 +74,75 @@ def render_property_detail(listing: dict, analysis: dict, score_data: dict, para
 # ============================================================
 
 def _render_photo_gallery(listing: dict):
-    """Toont een fotogalerij bovenaan de detail view."""
+    """Toont een interactieve fotogalerij met pijlnavigatie en thumbnail-strip."""
     images = listing.get("images", [])
     if not images:
         return
 
-    # Beperk tot max 8 foto's
-    images = images[:8]
+    # Cap at 30 for performance
+    imgs = images[:30]
+    total = len(images)
+    imgs_json = json.dumps(imgs)
 
-    if len(images) == 1:
-        st.image(images[0], use_container_width=True)
-    else:
-        # Hoofdfoto
-        st.image(images[0], use_container_width=True)
-
-        # Thumbnail strip
-        thumb_cols = st.columns(min(6, len(images) - 1))
-        for i, col in enumerate(thumb_cols):
-            img_idx = i + 1
-            if img_idx < len(images):
-                with col:
-                    st.image(images[img_idx], use_container_width=True)
+    html = f"""
+    <style>
+      * {{ margin:0; padding:0; box-sizing:border-box; }}
+      .gallery {{ position:relative; width:100%; background:#111; border-radius:8px; overflow:hidden; }}
+      .main-img {{ width:100%; height:480px; object-fit:contain; display:block; }}
+      .arrow {{ position:absolute; top:50%; transform:translateY(-50%); width:48px; height:48px;
+                background:rgba(0,0,0,0.45); border:none; color:#fff; font-size:28px;
+                cursor:pointer; border-radius:50%; opacity:0; transition:opacity .2s; z-index:2; }}
+      .gallery:hover .arrow {{ opacity:1; }}
+      .arrow:hover {{ background:rgba(0,0,0,0.7); }}
+      .arrow-l {{ left:12px; }}
+      .arrow-r {{ right:12px; }}
+      .counter {{ position:absolute; bottom:12px; right:12px; background:rgba(0,0,0,0.6);
+                  color:#fff; padding:4px 12px; border-radius:16px; font-size:13px; z-index:2; }}
+      .thumbs {{ display:flex; gap:6px; overflow-x:auto; padding:8px 0; scrollbar-width:thin; }}
+      .thumbs::-webkit-scrollbar {{ height:6px; }}
+      .thumbs::-webkit-scrollbar-thumb {{ background:#ccc; border-radius:3px; }}
+      .thumb {{ min-width:100px; height:70px; object-fit:cover; border-radius:4px;
+                cursor:pointer; opacity:0.5; transition:opacity .2s; border:2px solid transparent; }}
+      .thumb:hover {{ opacity:0.85; }}
+      .thumb.active {{ opacity:1; border-color:#1a365d; }}
+    </style>
+    <div class="gallery" id="gal">
+      <img class="main-img" id="main" src="{imgs[0]}">
+      <button class="arrow arrow-l" onclick="nav(-1)">&lsaquo;</button>
+      <button class="arrow arrow-r" onclick="nav(1)">&rsaquo;</button>
+      <span class="counter" id="ctr">1 / {total}</span>
+    </div>
+    <div class="thumbs" id="thumbs"></div>
+    <script>
+      var imgs = {imgs_json};
+      var total = {total};
+      var cur = 0;
+      var thumbsEl = document.getElementById('thumbs');
+      imgs.forEach(function(src, i) {{
+        var t = document.createElement('img');
+        t.src = src;
+        t.className = 'thumb' + (i === 0 ? ' active' : '');
+        t.onclick = function() {{ goTo(i); }};
+        thumbsEl.appendChild(t);
+      }});
+      function nav(dir) {{
+        goTo((cur + dir + imgs.length) % imgs.length);
+      }}
+      function goTo(i) {{
+        cur = i;
+        document.getElementById('main').src = imgs[cur];
+        document.getElementById('ctr').textContent = (cur+1) + ' / ' + total;
+        var ts = thumbsEl.querySelectorAll('.thumb');
+        ts.forEach(function(t, j) {{ t.className = 'thumb' + (j===cur?' active':''); }});
+        ts[cur].scrollIntoView({{ behavior:'smooth', inline:'center', block:'nearest' }});
+      }}
+      document.addEventListener('keydown', function(e) {{
+        if (e.key === 'ArrowLeft') nav(-1);
+        if (e.key === 'ArrowRight') nav(1);
+      }});
+    </script>
+    """
+    components.html(html, height=590)
 
 
 # ============================================================
