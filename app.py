@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from config import DEFAULT_PARAMS, get_score_label
+from config import DEFAULT_PARAMS
 from models.financial import calculate_investment_analysis
 from models.scoring import calculate_flip_score
 from components.dashboard import render_dashboard
@@ -16,7 +16,7 @@ from components.search_panel import render_search_panel, render_filters
 from components.neighborhood_view import render_neighborhood_view
 from components.auth_page import render_auth_page
 from components.search_history import render_search_history
-from services.pdf_export import generate_property_report, generate_batch_report
+from services.pdf_export import generate_batch_report
 from services.auth import is_logged_in, get_current_user, logout, restore_session
 from services.database import save_search
 
@@ -166,19 +166,8 @@ def _handle_direct_detail_link() -> bool:
     )
     st.divider()
 
+    # render_property_detail handles PDF export internally via _render_actions
     render_property_detail(listing, analysis, score_data, params)
-
-    # PDF export
-    st.divider()
-    if st.button("Exporteer PDF"):
-        with st.spinner("PDF genereren..."):
-            pdf_bytes = generate_property_report(listing, analysis, score_data, params)
-        st.download_button(
-            label="Download PDF Rapport",
-            data=pdf_bytes,
-            file_name=f"flip_analyse_{listing.get('zone', 'pand')}_{listing.get('price', 0):.0f}.pdf",
-            mime="application/pdf",
-        )
     return True
 
 
@@ -337,22 +326,8 @@ def main():
             selected_idx = options.index(selected_option)
             listing = analyzed[selected_idx]
 
-            # render_property_detail handles slider overrides + recalculation internally
+            # render_property_detail handles slider overrides, recalculation, and PDF export internally
             render_property_detail(listing, listing["analysis"], listing["score_data"], params)
-
-            # PDF export
-            if st.session_state.get("export_pdf"):
-                st.session_state["export_pdf"] = False
-                with st.spinner("PDF genereren..."):
-                    pdf_bytes = generate_property_report(
-                        listing, listing["analysis"], listing["score_data"], params,
-                    )
-                st.download_button(
-                    label="Download PDF Rapport",
-                    data=pdf_bytes,
-                    file_name=f"flip_analyse_{listing.get('zone', 'pand')}_{listing.get('price', 0):.0f}.pdf",
-                    mime="application/pdf",
-                )
         else:
             st.info("Laad eerst data via de zijbalk om een pand te analyseren.")
 

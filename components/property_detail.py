@@ -72,7 +72,7 @@ def render_property_detail(listing: dict, analysis: dict, score_data: dict, para
     st.divider()
 
     # === 9. ACTIES ===
-    _render_actions(listing)
+    _render_actions(listing, analysis, score_data, params)
 
 
 # ============================================================
@@ -552,12 +552,26 @@ def _render_sensitivity(listing: dict, params: dict, overrides: dict | None = No
 # ACTIES
 # ============================================================
 
-def _render_actions(listing: dict):
-    """Rendert actieknoppen."""
+def _render_actions(listing: dict, analysis: dict, score_data: dict, params: dict):
+    """Rendert actieknoppen met directe PDF export."""
+    from services.pdf_export import generate_property_report
+
     col1, col2 = st.columns(2)
     with col1:
         if listing.get("url"):
             st.link_button("Open op Immobiliare.it", listing["url"], use_container_width=True)
     with col2:
-        if st.button("Exporteer als PDF", key="pdf_export_btn", use_container_width=True):
-            st.session_state["export_pdf"] = True
+        pdf_state_key = f"pdf_{listing.get('url', 'unknown')}"
+        if st.button("Genereer PDF", key="pdf_export_btn", use_container_width=True):
+            with st.spinner("PDF genereren..."):
+                pdf_bytes = generate_property_report(listing, analysis, score_data, params)
+            st.session_state[pdf_state_key] = pdf_bytes
+
+        if pdf_state_key in st.session_state:
+            st.download_button(
+                label="Download PDF Rapport",
+                data=st.session_state[pdf_state_key],
+                file_name=f"flip_analyse_{listing.get('zone', 'pand')}_{listing.get('price', 0):.0f}.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+            )
