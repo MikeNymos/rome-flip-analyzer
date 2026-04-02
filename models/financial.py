@@ -38,9 +38,9 @@ def calculate_investment_analysis(
     surface = listing["surface_m2"]
     price = listing["price"]
 
-    # Extract NLP features (als nog niet aanwezig)
+    # Extract NLP features (als nog niet aanwezig of als het een raw list is van de scraper)
     features = listing.get("features")
-    if not features:
+    if not features or not isinstance(features, dict):
         features = extract_property_features(listing)
         listing["features"] = features
 

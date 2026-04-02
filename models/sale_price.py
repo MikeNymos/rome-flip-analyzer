@@ -29,7 +29,7 @@ def estimate_sale_price(
     """
     surface = listing["surface_m2"]
     zone_name = neighborhood_data.get("matched_zone", listing.get("zone", "Onbekend"))
-    feat = features or {}
+    feat = features if isinstance(features, dict) else {}
 
     base_low = neighborhood_data["renovated_price_low"]
     base_mid = neighborhood_data["renovated_price_mid"]

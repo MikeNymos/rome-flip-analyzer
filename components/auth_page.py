@@ -10,65 +10,147 @@ from services.auth import login, register, forgot_password
 
 def _inject_password_manager_fix():
     """
-    Injecteert JavaScript dat de juiste autocomplete, name, id en type
-    attributen op Streamlit text-inputs zet, zodat Google Password Manager
-    (en andere managers) de velden herkent.
+    Injecteert JavaScript + onzichtbare HTML die password managers helpen
+    de e-mail en wachtwoord velden correct te herkennen.
+
+    Strategie:
+    1. Maak een onzichtbare <form> met correcte <input> velden die password
+       managers herkennen (autocomplete, name, type attributen)
+    2. Sync waarden vanuit de onzichtbare inputs naar Streamlit's echte inputs
+    3. Pas ook attributen aan op Streamlit's eigen inputs als extra vangnet
     """
     st.markdown("""
+    <!-- Onzichtbaar login-formulier voor password manager herkenning -->
+    <form id="pm-login-form" autocomplete="on"
+          style="position:absolute;left:-9999px;top:-9999px;opacity:0;pointer-events:none;"
+          aria-hidden="true">
+        <input type="email" name="email" id="pm-email"
+               autocomplete="email username" tabindex="-1">
+        <input type="password" name="password" id="pm-password"
+               autocomplete="current-password" tabindex="-1">
+    </form>
+
     <script>
     (function() {
-        function fixInputs() {
-            // Zoek alle input-elementen in forms
-            var inputs = document.querySelectorAll(
-                '[data-testid="stForm"] input[type="text"], '
-                + '[data-testid="stForm"] input[type="password"]'
-            );
-            inputs.forEach(function(input) {
-                // Zoek het bijbehorende label
-                var container = input.closest('[data-testid="stTextInput"]')
-                                || input.closest('.stTextInput');
-                if (!container) return;
-                var label = container.querySelector('label');
-                if (!label) return;
-                var text = label.textContent.toLowerCase();
+        var FIXED_MARKER = '__pm_fixed__';
 
-                if (text.indexOf('e-mail') !== -1 || text.indexOf('email') !== -1) {
-                    input.setAttribute('autocomplete', 'email');
-                    input.setAttribute('name', 'email');
-                    input.setAttribute('id', 'email-' + Math.random().toString(36).substr(2,4));
-                    input.setAttribute('type', 'email');
-                    input.setAttribute('inputmode', 'email');
-                } else if (text.indexOf('bevestig') !== -1) {
-                    input.setAttribute('autocomplete', 'new-password');
-                    input.setAttribute('name', 'new-password-confirm');
-                } else if (text.indexOf('wachtwoord') !== -1 || text.indexOf('password') !== -1) {
-                    // Detect if this is registration or login form
-                    var form = input.closest('[data-testid="stForm"]');
-                    var formKey = form ? (form.getAttribute('data-testid') || '') : '';
-                    var allInputs = form ? form.querySelectorAll('input') : [];
-                    // If the form has more than 2 inputs, it's likely registration
-                    if (allInputs.length > 2) {
-                        input.setAttribute('autocomplete', 'new-password');
-                        input.setAttribute('name', 'new-password');
-                    } else {
-                        input.setAttribute('autocomplete', 'current-password');
-                        input.setAttribute('name', 'password');
-                    }
+        function getStInputs() {
+            // Vind Streamlit inputs - probeer meerdere selectors
+            var inputs = document.querySelectorAll('input');
+            var result = { email: null, password: null };
+            inputs.forEach(function(inp) {
+                // Skip onze onzichtbare inputs
+                if (inp.id === 'pm-email' || inp.id === 'pm-password') return;
+                // Skip al-gemarkeerde
+                var container = inp.closest('[data-testid="stTextInput"]')
+                                || inp.closest('.stTextInput')
+                                || inp.parentElement;
+                if (!container) return;
+
+                // Zoek label
+                var label = container.querySelector('label');
+                var labelText = label ? label.textContent.toLowerCase() : '';
+
+                // Herken op basis van type + label
+                if (inp.type === 'password' && !result.password) {
+                    result.password = inp;
+                } else if (inp.type !== 'password' &&
+                           (labelText.indexOf('e-mail') !== -1 ||
+                            labelText.indexOf('email') !== -1) &&
+                           !result.email) {
+                    result.email = inp;
+                }
+            });
+            return result;
+        }
+
+        function fixAttributes() {
+            var st = getStInputs();
+
+            if (st.email && !st.email[FIXED_MARKER]) {
+                // Forceer type="email" via DOM property (niet alleen attribute)
+                try { st.email.type = 'email'; } catch(e) {}
+                st.email.setAttribute('type', 'email');
+                st.email.setAttribute('autocomplete', 'email');
+                st.email.setAttribute('name', 'email');
+                st.email.setAttribute('id', 'login-email');
+                st.email.setAttribute('inputmode', 'email');
+                st.email[FIXED_MARKER] = true;
+
+                // Sync met onzichtbare PM input
+                st.email.addEventListener('input', function() {
+                    var pmEmail = document.getElementById('pm-email');
+                    if (pmEmail) pmEmail.value = this.value;
+                });
+                st.email.addEventListener('change', function() {
+                    var pmEmail = document.getElementById('pm-email');
+                    if (pmEmail) pmEmail.value = this.value;
+                });
+            }
+
+            if (st.password && !st.password[FIXED_MARKER]) {
+                st.password.setAttribute('autocomplete', 'current-password');
+                st.password.setAttribute('name', 'password');
+                st.password.setAttribute('id', 'login-password');
+                st.password[FIXED_MARKER] = true;
+
+                st.password.addEventListener('input', function() {
+                    var pmPw = document.getElementById('pm-password');
+                    if (pmPw) pmPw.value = this.value;
+                });
+            }
+
+            // Probeer ook Streamlit's form element de juiste attributen te geven
+            var forms = document.querySelectorAll('[data-testid="stForm"]');
+            forms.forEach(function(form) {
+                if (!form.getAttribute('autocomplete')) {
+                    form.setAttribute('autocomplete', 'on');
+                    form.setAttribute('method', 'post');
                 }
             });
         }
 
-        // Run periodically to catch Streamlit's dynamic rendering
-        fixInputs();
+        // React-proof: gebruik Object.defineProperty om type="email" te forceren
+        function forceEmailType() {
+            var st = getStInputs();
+            if (st.email && st.email.type !== 'email') {
+                try {
+                    // Forceer via nativeInputValueSetter (omzeil React)
+                    var nativeType = Object.getOwnPropertyDescriptor(
+                        HTMLInputElement.prototype, 'type'
+                    );
+                    if (nativeType && nativeType.set) {
+                        nativeType.set.call(st.email, 'email');
+                    }
+                } catch(e) {
+                    st.email.setAttribute('type', 'email');
+                }
+            }
+        }
+
+        // Start onmiddellijk en blijf proberen
+        fixAttributes();
+        forceEmailType();
+
+        // Regelmatige checks (React kan attributen resetten)
         var attempts = 0;
         var interval = setInterval(function() {
-            fixInputs();
+            fixAttributes();
+            forceEmailType();
             attempts++;
-            if (attempts > 30) clearInterval(interval);
-        }, 500);
+            if (attempts > 60) clearInterval(interval);
+        }, 300);
 
-        // Also use MutationObserver for new elements
-        var observer = new MutationObserver(function() { fixInputs(); });
+        // MutationObserver als vangnet
+        var observer = new MutationObserver(function(mutations) {
+            // Reset markers als inputs vervangen zijn
+            mutations.forEach(function(m) {
+                if (m.addedNodes.length > 0) {
+                    fixAttributes();
+                    forceEmailType();
+                }
+            });
+        });
         observer.observe(document.body, { childList: true, subtree: true });
     })();
     </script>
