@@ -15,6 +15,33 @@ from utils.helpers import format_eur, format_pct, format_m2, format_eur_per_m2, 
 from config import get_score_label
 
 
+SORT_OPTIONS = {
+    "Flip Score (hoog → laag)": ("flip_score", True),
+    "Flip Score (laag → hoog)": ("flip_score", False),
+    "Prijs (laag → hoog)": ("price", False),
+    "Prijs (hoog → laag)": ("price", True),
+    "Prijs/m² (laag → hoog)": ("price_per_m2", False),
+    "Prijs/m² (hoog → laag)": ("price_per_m2", True),
+    "ROI (hoog → laag)": ("roi_prima_casa", True),
+    "ROI (laag → hoog)": ("roi_prima_casa", False),
+    "Nieuwste eerst": ("listing_id", True),
+    "Oudste eerst": ("listing_id", False),
+}
+
+
+def _sort_listings(listings: list[dict], sort_key: str, reverse: bool) -> list[dict]:
+    """Sorteer listings op een gegeven key, None-waarden komen altijd achteraan."""
+    def sort_val(item):
+        val = item.get(sort_key)
+        if val is None:
+            return (1, 0)  # Altijd achteraan
+        if reverse:
+            return (0, -val)  # Negeer waarde voor aflopende sortering
+        return (0, val)
+
+    return sorted(listings, key=sort_val)
+
+
 def render_dashboard(analyzed_listings: list[dict]):
     """Rendert het hoofddashboard met samenvatting, kaarten en charts."""
     if not analyzed_listings:
@@ -24,8 +51,27 @@ def render_dashboard(analyzed_listings: list[dict]):
     _render_summary_cards(analyzed_listings)
     st.divider()
 
-    st.subheader("Alle Panden")
-    selected_idx = _render_property_cards(analyzed_listings)
+    # Sorteeroptie + header
+    sort_col, header_col = st.columns([1, 2])
+    with header_col:
+        st.subheader("Alle Panden")
+    with sort_col:
+        sort_label = st.selectbox(
+            "Sorteren op",
+            list(SORT_OPTIONS.keys()),
+            index=0,
+            key="dashboard_sort",
+        )
+    sort_field, sort_reverse = SORT_OPTIONS[sort_label]
+
+    # Check of listing_id beschikbaar is voor nieuwste/oudste sortering
+    has_ids = any(l.get("listing_id") is not None for l in analyzed_listings)
+    if sort_field == "listing_id" and not has_ids:
+        st.caption("Publicatievolgorde niet beschikbaar voor deze dataset. Fallback naar Flip Score.")
+        sort_field, sort_reverse = "flip_score", True
+
+    sorted_listings = _sort_listings(analyzed_listings, sort_field, sort_reverse)
+    selected_idx = _render_property_cards(sorted_listings, analyzed_listings)
 
     st.divider()
 
@@ -58,20 +104,37 @@ def _render_summary_cards(listings: list[dict]):
         st.metric("Beste deal", f"Score: {best.get('flip_score', 0)}", help=best_label)
 
 
-def _render_property_cards(listings: list[dict]) -> int | None:
-    """Rendert een grid van visuele property cards."""
+def _render_property_cards(sorted_listings: list[dict], original_listings: list[dict]) -> int | None:
+    """Rendert een grid van visuele property cards.
+
+    Args:
+        sorted_listings: Listings in de huidige sorteervolgorde (voor weergave).
+        original_listings: Originele (ongesorteerde) lijst (voor index-mapping).
+
+    Returns:
+        Index in original_listings van het geselecteerde pand, of None.
+    """
     selected_idx = None
     COLS = 3
 
-    for row_start in range(0, len(listings), COLS):
-        row_listings = listings[row_start:row_start + COLS]
+    # Bouw een lookup van url → originele index
+    url_to_orig_idx: dict[str, int] = {}
+    for i, l in enumerate(original_listings):
+        url = l.get("url", "")
+        if url:
+            url_to_orig_idx[url] = i
+
+    for row_start in range(0, len(sorted_listings), COLS):
+        row_listings = sorted_listings[row_start:row_start + COLS]
         cols = st.columns(COLS)
 
         for col_idx, listing in enumerate(row_listings):
-            global_idx = row_start + col_idx
+            display_idx = row_start + col_idx
             with cols[col_idx]:
-                if _render_single_card(listing, global_idx):
-                    selected_idx = global_idx
+                if _render_single_card(listing, display_idx):
+                    # Map terug naar originele index
+                    url = listing.get("url", "")
+                    selected_idx = url_to_orig_idx.get(url, display_idx)
 
     return selected_idx
 

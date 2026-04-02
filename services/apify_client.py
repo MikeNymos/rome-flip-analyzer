@@ -347,8 +347,17 @@ def _convert_next_data_to_flat(real_estate: dict) -> dict | None:
     features = prop.get("ga4features", [])
     feature_labels = [f.get("label", "") for f in prop.get("featureList", [])]
 
+    # Listing ID (numeriek) — bruikbaar als proxy voor publicatievolgorde
+    numeric_id = None
+    if listing_id:
+        try:
+            numeric_id = int(listing_id)
+        except (ValueError, TypeError):
+            pass
+
     return {
         "url": listing_url,
+        "listing_id": numeric_id,
         "title": title,
         "price": float(price_value),
         "surface_m2": surface,
