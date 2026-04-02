@@ -6,9 +6,9 @@ from __future__ import annotations
 
 DEFAULT_PARAMS = {
     # Renovatie
-    "renovation_cost_per_m2": 1500,
-    "renovation_cost_min_per_m2": 1200,
-    "renovation_cost_max_per_m2": 1800,
+    "renovation_cost_per_m2": 2000,
+    "renovation_cost_min_per_m2": 2000,
+    "renovation_cost_max_per_m2": 2200,
 
     # Bijkomende aankoopkosten
     "registration_tax_seconda_casa": 0.09,
@@ -32,7 +32,7 @@ DEFAULT_PARAMS = {
     "plusvalenza_exempt_prima_casa": True,
 
     # Verkoopschattingen
-    "asking_price_discount": 0.08,
+    "asking_price_discount": 0.03,
     "renovated_premium_factor": 1.0,
 
     # Filters

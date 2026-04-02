@@ -33,7 +33,7 @@ NEIGHBORHOOD_BENCHMARKS: dict[str, dict] = {
                 "type": "official",
             },
         ],
-        "comparable_search_url": "https://www.immobiliare.it/vendita-case/roma/prati/?criterio=rilevanza&stato=ristrutturato",
+        "comparable_search_url": "https://www.immobiliare.it/vendita-case/roma/prati/",
         "recent_transactions": [
             {"address": "Via Cola di Rienzo", "price_m2": 8200, "surface": 95, "date": "2024-12", "type": "Gerenoveerd trilocale"},
             {"address": "Via Ottaviano", "price_m2": 7800, "surface": 110, "date": "2024-11", "type": "Gerenoveerd quadrilocale"},
@@ -64,7 +64,7 @@ NEIGHBORHOOD_BENCHMARKS: dict[str, dict] = {
                 "type": "official",
             },
         ],
-        "comparable_search_url": "https://www.immobiliare.it/vendita-case/roma/trieste/?criterio=rilevanza&stato=ristrutturato",
+        "comparable_search_url": "https://www.immobiliare.it/vendita-case/roma/trieste/",
         "recent_transactions": [
             {"address": "Via Tagliamento", "price_m2": 6400, "surface": 120, "date": "2024-11", "type": "Gerenoveerd quadrilocale"},
             {"address": "Piazza Istria", "price_m2": 6800, "surface": 90, "date": "2024-12", "type": "Gerenoveerd trilocale"},
@@ -95,7 +95,7 @@ NEIGHBORHOOD_BENCHMARKS: dict[str, dict] = {
                 "type": "official",
             },
         ],
-        "comparable_search_url": "https://www.immobiliare.it/vendita-case/roma/parioli/?criterio=rilevanza&stato=ristrutturato",
+        "comparable_search_url": "https://www.immobiliare.it/vendita-case/roma/parioli/",
         "recent_transactions": [
             {"address": "Viale Parioli", "price_m2": 7200, "surface": 130, "date": "2024-10", "type": "Gerenoveerd quadrilocale"},
             {"address": "Via Archimede", "price_m2": 8100, "surface": 100, "date": "2024-12", "type": "Gerenoveerd trilocale met balkon"},
@@ -126,7 +126,7 @@ NEIGHBORHOOD_BENCHMARKS: dict[str, dict] = {
                 "type": "official",
             },
         ],
-        "comparable_search_url": "https://www.immobiliare.it/vendita-case/roma/flaminio/?criterio=rilevanza&stato=ristrutturato",
+        "comparable_search_url": "https://www.immobiliare.it/vendita-case/roma/flaminio/",
         "recent_transactions": [
             {"address": "Viale del Vignola", "price_m2": 6900, "surface": 95, "date": "2024-11", "type": "Gerenoveerd trilocale"},
             {"address": "Via Flaminia", "price_m2": 7200, "surface": 80, "date": "2024-12", "type": "Gerenoveerd bilocale met terras"},
@@ -157,7 +157,7 @@ NEIGHBORHOOD_BENCHMARKS: dict[str, dict] = {
                 "type": "official",
             },
         ],
-        "comparable_search_url": "https://www.immobiliare.it/vendita-case/roma/centro/?criterio=rilevanza&stato=ristrutturato",
+        "comparable_search_url": "https://www.immobiliare.it/vendita-case/roma/centro/",
         "recent_transactions": [
             {"address": "Via dei Coronari", "price_m2": 11500, "surface": 90, "date": "2024-10", "type": "Gerenoveerd trilocale"},
             {"address": "Rione Monti", "price_m2": 10800, "surface": 75, "date": "2024-12", "type": "Gerenoveerd bilocale met gewelven"},
@@ -190,7 +190,7 @@ DEFAULT_BENCHMARK = {
             "type": "official",
         },
     ],
-    "comparable_search_url": "https://www.immobiliare.it/vendita-case/roma/?criterio=rilevanza&stato=ristrutturato",
+    "comparable_search_url": "https://www.immobiliare.it/vendita-case/roma/",
     "recent_transactions": [],
 }
 

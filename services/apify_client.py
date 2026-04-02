@@ -199,7 +199,7 @@ def _clean_search_url(url: str) -> str:
 
     # Remove params that don't work well with SSR or are map-specific
     params = parse_qs(parsed.query, keep_blank_values=True)
-    skip_params = {"mapCenter", "zoom", "idMacroarea"}
+    skip_params = {"mapCenter", "zoom", "idMacroarea", "stato", "criterio"}
     # fasciaPiano in query params gives different (fewer) results than the path
     # segment equivalent; remove it so we get the full result set
     skip_params.update(k for k in params if k.startswith("fasciaPiano"))
@@ -462,7 +462,7 @@ def fetch_market_comparables(
     max_results: int = 8,
 ) -> list[dict]:
     """
-    Haalt vergelijkbare gerenoveerde panden op van Immobiliare.it
+    Haalt vergelijkbare panden op van Immobiliare.it
     op basis van geschatte verkoopprijs en oppervlakte.
 
     Wordt alleen aangeroepen vanuit de detail-view (niet voor bulk-analyse).
@@ -481,37 +481,35 @@ def fetch_market_comparables(
     """
     import math
 
-    # Bepaal prijsrange (±30% van geschatte verkoopprijs)
-    price_min = max(50000, int(target_price * 0.70))
-    price_max = int(target_price * 1.35)
+    # Bepaal prijsrange (±35% van geschatte verkoopprijs)
+    price_min = max(50000, int(target_price * 0.65))
+    price_max = int(target_price * 1.40)
 
     # Bepaal oppervlakterange (±40% van doelpand)
     surface_min = max(25, int(target_surface * 0.60))
     surface_max = int(target_surface * 1.50)
 
-    # Bouw zoek-URL met filters
-    separator = "&" if "?" in comparable_search_url else "?"
+    # Bouw schone zoek-URL: strip alle bestaande query params (stato, criterio etc.
+    # kunnen SSR breken) en gebruik alleen de zone-padstructuur + prijsfilters
+    base_url = _strip_query_params(comparable_search_url)
+
+    # Poging 1: schone URL met prijs + oppervlaktefilters
     search_url = (
-        f"{comparable_search_url}{separator}"
-        f"prezzoMinimo={price_min}&prezzoMassimo={price_max}"
+        f"{base_url}?prezzoMinimo={price_min}&prezzoMassimo={price_max}"
         f"&superficieMinima={surface_min}&superficieMassima={surface_max}"
     )
-
-    # Haal eerste pagina op (maximaal ~25 resultaten)
     page_data = _fetch_search_page(search_url, page=1)
 
-    # Fallback: probeer zonder oppervlaktefilter
+    # Fallback 2: alleen prijsfilter (breder zoeken)
     if not page_data:
-        search_url_no_surface = (
-            f"{comparable_search_url}{separator}"
-            f"prezzoMinimo={price_min}&prezzoMassimo={price_max}"
+        search_url_price_only = (
+            f"{base_url}?prezzoMinimo={price_min}&prezzoMassimo={price_max}"
         )
-        page_data = _fetch_search_page(search_url_no_surface, page=1)
+        page_data = _fetch_search_page(search_url_price_only, page=1)
 
-    # Tweede fallback: probeer schone URL
+    # Fallback 3: schone zone-URL zonder filters
     if not page_data:
-        clean_url = _clean_search_url(search_url)
-        page_data = _fetch_search_page(clean_url, page=1)
+        page_data = _fetch_search_page(base_url, page=1)
 
     if not page_data:
         return []
@@ -549,6 +547,16 @@ def fetch_market_comparables(
     comparables.sort(key=lambda x: x.get("distance_km") if x.get("distance_km") is not None else 999)
 
     return comparables[:max_results]
+
+
+def _strip_query_params(url: str) -> str:
+    """
+    Verwijdert alle query-parameters van een URL en retourneert alleen
+    scheme + host + pad. Zorgt dat het pad eindigt op '/'.
+    """
+    parsed = urlparse(url)
+    clean_path = parsed.path.rstrip("/") + "/"
+    return urlunparse((parsed.scheme, parsed.netloc, clean_path, "", "", ""))
 
 
 def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:

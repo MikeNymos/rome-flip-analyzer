@@ -440,7 +440,7 @@ def _render_market_comparables(listing: dict, analysis: dict):
 
     st.subheader("Marktvalidatie — Vergelijkbare Te Koop")
     st.caption(
-        "Gerenoveerde panden momenteel te koop in dezelfde wijk en prijsklasse. "
+        "Panden momenteel te koop in dezelfde wijk en prijsklasse. "
         "Vergelijk deze met je geschatte verkoopprijs om te valideren of je inschatting klopt."
     )
 
@@ -469,7 +469,7 @@ def _render_market_comparables(listing: dict, analysis: dict):
     comparables = st.session_state[cache_key]
 
     if not comparables:
-        st.info("Geen vergelijkbare gerenoveerde panden gevonden in deze prijsklasse.")
+        st.info("Geen vergelijkbare panden gevonden in deze prijsklasse.")
         return
 
     # Toon samenvatting
