@@ -98,9 +98,7 @@ def render_search_panel():
             label_visibility="collapsed",
         )
         if st.button("Analyseer Dit Pand", key="btn_listing", use_container_width=True):
-            if not api_key:
-                st.error("Voer eerst een Apify API key in.")
-            elif not listing_url:
+            if not listing_url:
                 st.error("Voer een pand-URL in.")
             else:
                 is_valid, url_type = validate_immobiliare_url(listing_url)
@@ -108,10 +106,14 @@ def render_search_panel():
                     st.error("Ongeldige URL. Voer een Immobiliare.it URL in.")
                 else:
                     try:
-                        with st.spinner("Pand ophalen via Apify..."):
+                        with st.spinner("Pand ophalen..."):
                             raw_results = run_immobiliare_scraper(api_key, listing_url, max_pages=1)
                         if raw_results:
-                            new_listings = parse_json_data(raw_results)
+                            # Direct scraping returns pre-normalized dicts
+                            if isinstance(raw_results[0], dict) and "price" in raw_results[0] and "surface_m2" in raw_results[0]:
+                                new_listings = filter_valid_listings(raw_results)
+                            else:
+                                new_listings = parse_json_data(raw_results)
                             st.session_state["last_search_type"] = "single"
                             st.session_state["last_search_query"] = listing_url
                             st.success("Pand succesvol opgehaald!")

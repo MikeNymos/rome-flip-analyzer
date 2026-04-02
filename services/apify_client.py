@@ -43,12 +43,18 @@ def run_immobiliare_scraper(
     if url_type == "search":
         return _scrape_search_direct(url, max_pages, max_results)
     else:
-        # Single listing — use Apify actor
-        return _run_actor(api_key, SEARCH_ACTOR_ID, {
-            "startUrl": url,
-            "max_pages": 1,
-            "results_wanted": 1,
-        })
+        # Single listing — direct scraping (no Apify needed)
+        result = _scrape_single_listing_direct(url)
+        if result:
+            return [result]
+        # Fallback to Apify if direct scraping fails
+        if api_key:
+            return _run_actor(api_key, SEARCH_ACTOR_ID, {
+                "startUrl": url,
+                "max_pages": 1,
+                "results_wanted": 1,
+            })
+        raise Exception("Kon pand niet ophalen. Directe scraping mislukt en geen Apify API key beschikbaar.")
 
 
 def _scrape_search_direct(url: str, max_pages: int, max_results: int) -> list[dict]:
@@ -125,6 +131,113 @@ def _scrape_search_direct(url: str, max_pages: int, max_results: int) -> list[di
 
     progress_bar.empty()
     return parsed
+
+
+def _scrape_single_listing_direct(url: str) -> dict | None:
+    """
+    Directly scrape a single Immobiliare.it listing page by extracting
+    the embedded __NEXT_DATA__ JSON. No Apify needed.
+
+    The listing detail page has a different __NEXT_DATA__ structure than
+    search results: the listing data is in
+    props.pageProps.dehydratedState.queries[N].state.data
+    where the data contains the full listing object.
+    """
+    try:
+        resp = requests.get(url, headers=_HEADERS, timeout=20)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        st.warning(f"Fout bij ophalen pand: {e}")
+        return None
+
+    # Extract __NEXT_DATA__ JSON
+    match = re.search(
+        r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>',
+        resp.text,
+        re.DOTALL,
+    )
+    if not match:
+        st.warning("Kon geen data extraheren van de pandpagina (geen __NEXT_DATA__).")
+        return None
+
+    try:
+        next_data = json.loads(match.group(1))
+    except json.JSONDecodeError:
+        st.warning("Kon __NEXT_DATA__ niet parsen als JSON.")
+        return None
+
+    # Navigate to the listing data in the dehydrated state
+    queries = (
+        next_data.get("props", {})
+        .get("pageProps", {})
+        .get("dehydratedState", {})
+        .get("queries", [])
+    )
+
+    # Find the query that contains the listing data
+    listing_data = None
+    for query in queries:
+        data = query.get("state", {}).get("data", {})
+        if not isinstance(data, dict):
+            continue
+        # Single listing pages store data differently than search pages.
+        # Look for 'realEstate' key (listing detail) or direct property data.
+        if "realEstate" in data:
+            listing_data = data.get("realEstate", data)
+            break
+        # Some pages embed the listing directly with 'properties', 'price', etc.
+        if "properties" in data and "price" in data:
+            listing_data = data
+            break
+        # Also check for nested listing in 'listing' key
+        if "listing" in data and isinstance(data["listing"], dict):
+            listing_data = data["listing"]
+            break
+
+    # Fallback: check pageProps directly for listing data
+    if not listing_data:
+        page_props = next_data.get("props", {}).get("pageProps", {})
+        if "listing" in page_props:
+            listing_data = page_props["listing"]
+        elif "realEstate" in page_props:
+            listing_data = page_props["realEstate"]
+
+    if not listing_data:
+        st.warning("Kon panddata niet vinden in de pagina-structuur.")
+        return None
+
+    # Convert using our standard converter
+    converted = _convert_next_data_to_flat(listing_data)
+    if converted:
+        # Single listing pages often have more detail (description, etc.)
+        # Try to enrich with data not available in search results
+        properties = listing_data.get("properties", [])
+        if properties:
+            prop = properties[0]
+            for p in properties:
+                if p.get("isMain", False):
+                    prop = p
+                    break
+
+            # Enrich description if available
+            if not converted.get("description"):
+                converted["description"] = prop.get("description", "")
+
+            # Enrich condominium fees
+            if converted.get("condominium_fees") is None:
+                expense = prop.get("expense", {})
+                if isinstance(expense, dict):
+                    monthly = expense.get("monthlyExpense")
+                    if monthly:
+                        try:
+                            converted["condominium_fees"] = float(monthly)
+                        except (ValueError, TypeError):
+                            pass
+
+        return converted
+
+    st.warning("Kon panddata niet converteren naar het verwachte formaat.")
+    return None
 
 
 def _fetch_search_page(url: str, page: int = 1) -> dict | None:
