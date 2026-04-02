@@ -20,10 +20,17 @@ SEARCH_ACTOR_ID = "shahidirfan~immobiliare-it-scraper"
 _HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
     ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9,it;q=0.8",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Cache-Control": "no-cache",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Upgrade-Insecure-Requests": "1",
 }
 
 
@@ -43,18 +50,30 @@ def run_immobiliare_scraper(
     if url_type == "search":
         return _scrape_search_direct(url, max_pages, max_results)
     else:
-        # Single listing — direct scraping (no Apify needed)
-        result = _scrape_single_listing_direct(url)
+        # Single listing — clean URL first
+        clean_url = _clean_listing_url(url)
+
+        # Try direct HTML scraping
+        result = _scrape_single_listing_direct(clean_url)
         if result:
             return [result]
-        # Fallback to Apify if direct scraping fails
+
+        # Fallback: try Immobiliare.it public API (bypasses 403 on HTML)
+        result = _fetch_single_listing_api(clean_url)
+        if result:
+            return [result]
+
+        # Last resort: Apify actor
         if api_key:
             return _run_actor(api_key, SEARCH_ACTOR_ID, {
-                "startUrl": url,
+                "startUrl": clean_url,
                 "max_pages": 1,
                 "results_wanted": 1,
             })
-        raise Exception("Kon pand niet ophalen. Directe scraping mislukt en geen Apify API key beschikbaar.")
+        raise Exception(
+            "Kon pand niet ophalen. Immobiliare.it blokkeert mogelijk de server. "
+            "Probeer het later opnieuw of gebruik een zoek-URL in plaats van een enkel pand."
+        )
 
 
 def _scrape_search_direct(url: str, max_pages: int, max_results: int) -> list[dict]:
@@ -131,6 +150,46 @@ def _scrape_search_direct(url: str, max_pages: int, max_results: int) -> list[di
 
     progress_bar.empty()
     return parsed
+
+
+def _fetch_single_listing_api(url: str) -> dict | None:
+    """
+    Fetch listing data via Immobiliare.it's internal API endpoint.
+    This often works even when the HTML page returns 403 (IP-based blocking).
+
+    The API endpoint is: https://www.immobiliare.it/api-next/search-list/real-estates/{id}
+    """
+    # Extract listing ID from URL
+    m = re.search(r'/annunc[io]+/(\d+)', url)
+    if not m:
+        return None
+
+    listing_id = m.group(1)
+    api_url = f"https://www.immobiliare.it/api-next/search-list/real-estates/{listing_id}"
+
+    api_headers = {
+        **_HEADERS,
+        "Accept": "application/json",
+        "Referer": "https://www.immobiliare.it/",
+    }
+
+    try:
+        resp = requests.get(api_url, headers=api_headers, timeout=15)
+        if resp.status_code == 403:
+            # Try alternative API endpoint
+            api_url_alt = f"https://www.immobiliare.it/api-next/search-list/detail/{listing_id}/"
+            resp = requests.get(api_url_alt, headers=api_headers, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+    except (requests.RequestException, json.JSONDecodeError):
+        return None
+
+    # The API returns the listing data directly or wrapped
+    real_estate = data.get("realEstate", data)
+    if not real_estate or not isinstance(real_estate, dict):
+        return None
+
+    return _convert_next_data_to_flat(real_estate)
 
 
 def _scrape_single_listing_direct(url: str) -> dict | None:
@@ -686,6 +745,39 @@ def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return R * 2 * math.asin(math.sqrt(a))
 
 
+def _clean_listing_url(url: str) -> str:
+    """
+    Schoont een listing-URL op:
+    - Verwijdert fragment (#foto20, etc.)
+    - Verwijdert dubbel-geplakte URLs
+    - Normaliseert naar canonieke vorm: https://www.immobiliare.it/annunci/{id}/
+    """
+    url = url.strip()
+
+    # Verwijder fragment
+    if "#" in url:
+        url = url.split("#")[0]
+
+    # Detecteer en fix dubbel-geplakte URLs (bv. "https://...annunci/127 https://...annunci/127935180/")
+    # Zoek naar het patroon: meerdere https:// in de string
+    parts = re.split(r'(?=https?://)', url)
+    valid_parts = [p.strip() for p in parts if p.strip() and "immobiliare.it" in p]
+    if valid_parts:
+        # Gebruik de langste geldige URL (meest compleet)
+        url = max(valid_parts, key=len)
+
+    # Verwijder trailing whitespace/slashes en normaliseer
+    url = url.rstrip().rstrip("/") + "/"
+
+    # Extraheer listing ID en bouw canonieke URL
+    m = re.search(r'/annunc[io]+/(\d+)', url)
+    if m:
+        listing_id = m.group(1)
+        return f"https://www.immobiliare.it/annunci/{listing_id}/"
+
+    return url
+
+
 def validate_immobiliare_url(url: str) -> tuple[bool, str]:
     """
     Valideert of de URL een geldige Immobiliare.it URL is.
@@ -694,12 +786,17 @@ def validate_immobiliare_url(url: str) -> tuple[bool, str]:
         (is_valid, url_type) waar url_type "search" of "listing" is.
     """
     url = url.strip()
-    if not url.startswith("https://www.immobiliare.it") and not url.startswith("http://www.immobiliare.it"):
+
+    # Verwijder fragment voor validatie
+    clean = url.split("#")[0].strip()
+
+    # Check of het überhaupt een Immobiliare.it URL is
+    if "immobiliare.it" not in clean.lower():
         return False, ""
 
-    if "/annunci/" in url or "/annuncio/" in url:
+    if "/annunci/" in clean or "/annuncio/" in clean:
         return True, "listing"
-    elif "/vendita-case/" in url or "/vendita-appartamenti/" in url or "/affitto-case/" in url:
+    elif "/vendita-case/" in clean or "/vendita-appartamenti/" in clean or "/affitto-case/" in clean:
         return True, "search"
 
     # Accepteer ook andere Immobiliare.it URLs als zoek-URL

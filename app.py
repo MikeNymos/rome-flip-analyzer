@@ -78,11 +78,17 @@ def _inject_theme_css():
     }
     section[data-testid="stSidebar"] .stTextInput input,
     section[data-testid="stSidebar"] .stNumberInput input,
-    section[data-testid="stSidebar"] .stTextArea textarea {
-        background: rgba(255,255,255,0.06) !important;
-        border: 1px solid rgba(255,255,255,0.08) !important;
+    section[data-testid="stSidebar"] .stTextArea textarea,
+    section[data-testid="stSidebar"] input {
+        background: rgba(255,255,255,0.08) !important;
+        border: 1px solid rgba(255,255,255,0.12) !important;
         border-radius: 12px !important;
         color: #F1F5F9 !important;
+        -webkit-text-fill-color: #F1F5F9 !important;
+    }
+    section[data-testid="stSidebar"] input::placeholder {
+        color: rgba(241,245,249,0.4) !important;
+        -webkit-text-fill-color: rgba(241,245,249,0.4) !important;
     }
     section[data-testid="stSidebar"] [data-baseweb="select"] > div {
         background: rgba(255,255,255,0.06) !important;
