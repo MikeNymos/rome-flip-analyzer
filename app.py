@@ -22,6 +22,7 @@ from components.search_panel import render_search_panel, render_filters
 from components.neighborhood_view import render_neighborhood_view
 from components.auth_page import render_auth_page
 from components.search_history import render_search_history
+from components.favorites import render_favorites
 from services.pdf_export import generate_batch_report
 from services.auth import is_logged_in, get_current_user, logout, restore_session
 from services.database import save_search
@@ -434,7 +435,7 @@ def main():
         filtered = []
 
     # === HOOFDGEBIED ===
-    TAB_NAMES = ["Dashboard", "Pand Detail", "Instellingen", "Wijkdata"]
+    TAB_NAMES = ["Dashboard", "Pand Detail", "Favorieten", "Instellingen", "Wijkdata"]
     active_tab = st.session_state.get("active_tab", "Dashboard")
     if active_tab not in TAB_NAMES:
         active_tab = "Dashboard"
@@ -519,7 +520,20 @@ def main():
         else:
             st.info("Laad eerst data via de zijbalk om een pand te analyseren.")
 
-    # --- TAB 3: INSTELLINGEN ---
+    # --- TAB 3: FAVORIETEN ---
+    elif active_tab == "Favorieten":
+        selected_fav = render_favorites()
+        if selected_fav:
+            # Gebruiker wil een favoriet bekijken — toon detail
+            analysis = selected_fav.get("analysis", {})
+            score_data = selected_fav.get("score_data", {})
+            if analysis and score_data:
+                st.divider()
+                render_property_detail(selected_fav, analysis, score_data, params)
+            else:
+                st.warning("Analysedata niet beschikbaar voor dit opgeslagen pand.")
+
+    # --- TAB 4: INSTELLINGEN ---
     elif active_tab == "Instellingen":
         updated_params = render_settings(params)
         if updated_params != params:
@@ -530,7 +544,7 @@ def main():
                         st.session_state["raw_listings"], updated_params
                     )
 
-    # --- TAB 4: WIJKDATA ---
+    # --- TAB 5: WIJKDATA ---
     elif active_tab == "Wijkdata":
         render_neighborhood_view()
 

@@ -126,3 +126,95 @@ def delete_search(search_id: str) -> bool:
         return True
     except Exception:
         return False
+
+
+# ============================================================
+# FAVORIETEN
+# ============================================================
+
+def toggle_favorite(user_id: str, listing: dict) -> bool:
+    """
+    Voegt een pand toe aan favorieten of verwijdert het als het al bestaat.
+
+    Returns:
+        True als het pand nu een favoriet is, False als het verwijderd is.
+    """
+    listing_url = listing.get("url", "")
+    if not listing_url:
+        return False
+
+    try:
+        client = get_supabase_client()
+
+        # Check of het al een favoriet is
+        result = (
+            client.table("favorites")
+            .select("id")
+            .eq("user_id", user_id)
+            .eq("listing_url", listing_url)
+            .execute()
+        )
+
+        if result.data:
+            # Verwijder favoriet
+            client.table("favorites").delete().eq("id", result.data[0]["id"]).execute()
+            return False
+        else:
+            # Voeg toe als favoriet
+            sanitized = _sanitize_for_json(listing)
+            client.table("favorites").insert({
+                "user_id": user_id,
+                "listing_url": listing_url,
+                "listing_data": sanitized,
+                "flip_score": listing.get("flip_score", 0),
+                "zone": listing.get("zone", ""),
+                "price": listing.get("price", 0),
+            }).execute()
+            return True
+    except Exception as e:
+        st.toast(f"Favoriet opslaan mislukt: {e}", icon="⚠️")
+        return False
+
+
+def get_favorites(user_id: str) -> list[dict]:
+    """Haalt alle favoriete panden op voor een gebruiker, nieuwste eerst."""
+    try:
+        client = get_supabase_client()
+        result = (
+            client.table("favorites")
+            .select("*")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        return result.data or []
+    except Exception:
+        return []
+
+
+def is_favorite(user_id: str, listing_url: str) -> bool:
+    """Controleert of een pand al een favoriet is."""
+    if not listing_url:
+        return False
+    try:
+        client = get_supabase_client()
+        result = (
+            client.table("favorites")
+            .select("id")
+            .eq("user_id", user_id)
+            .eq("listing_url", listing_url)
+            .execute()
+        )
+        return bool(result.data)
+    except Exception:
+        return False
+
+
+def remove_favorite(user_id: str, listing_url: str) -> bool:
+    """Verwijdert een pand uit favorieten."""
+    try:
+        client = get_supabase_client()
+        client.table("favorites").delete().eq("user_id", user_id).eq("listing_url", listing_url).execute()
+        return True
+    except Exception:
+        return False

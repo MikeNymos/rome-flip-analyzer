@@ -13,6 +13,8 @@ import plotly.graph_objects as go
 
 from utils.helpers import format_eur, format_pct, format_m2, format_eur_per_m2, score_color
 from config import get_score_label
+from services.auth import is_logged_in, get_current_user
+from services.database import toggle_favorite, is_favorite
 
 
 SORT_OPTIONS = {
@@ -219,7 +221,26 @@ def _render_single_card(listing: dict, idx: int) -> bool:
                 unsafe_allow_html=True,
             )
 
-        # Score badge
+        # Score badge + favoriet hart
+        listing_url = listing.get("url", "")
+        user = get_current_user() if is_logged_in() else None
+        is_fav = False
+        if user and listing_url:
+            fav_cache_key = f"fav_{user['id']}_{listing_url}"
+            if fav_cache_key not in st.session_state:
+                st.session_state[fav_cache_key] = is_favorite(user["id"], listing_url)
+            is_fav = st.session_state[fav_cache_key]
+
+        heart_html = ""
+        if user:
+            heart_icon = "&#10084;" if is_fav else "&#9825;"
+            heart_color = "#e53e3e" if is_fav else "#a0aec0"
+            heart_html = (
+                f'<span style="color:{heart_color};font-size:1.3em;cursor:pointer;" '
+                f'title="{"Verwijder uit favorieten" if is_fav else "Toevoegen aan favorieten"}">'
+                f'{heart_icon}</span>'
+            )
+
         st.markdown(
             f'<div style="display:flex;align-items:center;gap:8px;margin:8px 0 4px 0;">'
             f'<span style="background:{color};color:white;padding:4px 14px;'
@@ -227,6 +248,7 @@ def _render_single_card(listing: dict, idx: int) -> bool:
             f'<span style="color:#555;font-size:0.85em;">{label}</span>'
             f'<span style="color:#888;font-size:0.8em;margin-left:auto;">'
             f'Locatie: {loc_score}/100</span>'
+            f'{heart_html}'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -248,10 +270,14 @@ def _render_single_card(listing: dict, idx: int) -> bool:
             st.caption(f"{risk_count} risicovlag(gen)")
 
         # Knoppen
-        col_a, col_b = st.columns(2)
+        if user:
+            col_a, col_b, col_fav = st.columns([2, 2, 1])
+        else:
+            col_a, col_b = st.columns(2)
+            col_fav = None
+
         with col_a:
             search_id = st.session_state.get("last_search_id")
-            listing_url = listing.get("url", "")
             if search_id and listing_url:
                 encoded_url = quote(listing_url, safe="")
                 st.markdown(
@@ -270,6 +296,15 @@ def _render_single_card(listing: dict, idx: int) -> bool:
             url = listing.get("url", "")
             if url:
                 st.link_button("Immobiliare", url, use_container_width=True)
+
+        if col_fav and user and listing_url:
+            with col_fav:
+                fav_label = "❤️" if is_fav else "🤍"
+                if st.button(fav_label, key=f"fav_{idx}", help="Favoriet", use_container_width=True):
+                    new_state = toggle_favorite(user["id"], listing)
+                    fav_cache_key = f"fav_{user['id']}_{listing_url}"
+                    st.session_state[fav_cache_key] = new_state
+                    st.rerun()
 
     return selected
 

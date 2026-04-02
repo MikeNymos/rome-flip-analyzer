@@ -15,6 +15,8 @@ from data.constants import CONDITION_MAP
 from models.financial import calculate_investment_analysis, calculate_sensitivity
 from models.scoring import calculate_flip_score
 from models.risk import analyze_description
+from services.auth import is_logged_in, get_current_user
+from services.database import toggle_favorite, is_favorite
 
 
 def render_property_detail(listing: dict, analysis: dict, score_data: dict, params: dict):
@@ -183,14 +185,43 @@ def _render_header(listing: dict, score_data: dict):
         )
 
     with col2:
-        st.markdown(f"### {listing.get('title', 'Onbekend pand')}")
+        # Titel + favorieten knop
+        title_col, fav_col = st.columns([5, 1])
+        with title_col:
+            st.markdown(f"### {listing.get('title', 'Onbekend pand')}")
+        with fav_col:
+            user = get_current_user() if is_logged_in() else None
+            listing_url = listing.get("url", "")
+            if user and listing_url:
+                fav_cache_key = f"fav_{user['id']}_{listing_url}"
+                if fav_cache_key not in st.session_state:
+                    st.session_state[fav_cache_key] = is_favorite(user["id"], listing_url)
+                is_fav = st.session_state[fav_cache_key]
+                fav_label = "❤️ Favoriet" if is_fav else "🤍 Favoriet"
+                if st.button(fav_label, key="detail_fav_btn", use_container_width=True):
+                    new_state = toggle_favorite(user["id"], listing)
+                    st.session_state[fav_cache_key] = new_state
+                    st.rerun()
+
         condition_label = CONDITION_MAP.get(listing.get("condition", ""), listing.get("condition", ""))
 
         info_parts = []
         if listing.get("zone"):
             info_parts.append(f"**Wijk:** {listing['zone']}")
+
+        # Adres met Google Maps link
         if listing.get("address"):
-            info_parts.append(f"**Adres:** {listing['address']}")
+            address = listing["address"]
+            lat = listing.get("latitude")
+            lng = listing.get("longitude")
+            if lat and lng:
+                maps_url = f"https://www.google.com/maps/search/?api=1&query={lat},{lng}"
+            else:
+                from urllib.parse import quote as url_quote
+                maps_query = f"{address}, {listing.get('zone', '')}, Roma, Italia"
+                maps_url = f"https://www.google.com/maps/search/?api=1&query={url_quote(maps_query)}"
+            info_parts.append(f"**Adres:** [{address}]({maps_url})")
+
         if listing.get("floor") is not None:
             floor_text = "Begane grond" if listing["floor"] == 0 else f"Verdieping {listing['floor']}"
             if listing.get("has_elevator") is not None:
@@ -376,11 +407,64 @@ def _render_sale_price_justification(listing: dict, analysis: dict):
 
 
 # ============================================================
+# GOOGLE MAPS PREVIEW
+# ============================================================
+
+def _render_maps_preview(listing: dict):
+    """Toont een Google Maps preview met de locatie van het pand."""
+    lat = listing.get("latitude")
+    lng = listing.get("longitude")
+    address = listing.get("address", "")
+    zone = listing.get("zone", "")
+
+    if not lat or not lng:
+        # Geen coordinaten beschikbaar — skip
+        return
+
+    # Google Maps link voor nieuw tabblad
+    maps_url = f"https://www.google.com/maps/search/?api=1&query={lat},{lng}"
+
+    # OpenStreetMap embed (gratis, geen API key nodig)
+    osm_embed = (
+        f"https://www.openstreetmap.org/export/embed.html?"
+        f"bbox={lng-0.005},{lat-0.003},{lng+0.005},{lat+0.003}"
+        f"&layer=mapnik&marker={lat},{lng}"
+    )
+
+    map_col, info_col = st.columns([2, 1])
+
+    with map_col:
+        components.html(
+            f'<iframe width="100%" height="280" frameborder="0" scrolling="no" '
+            f'marginheight="0" marginwidth="0" '
+            f'src="{osm_embed}" '
+            f'style="border-radius:8px;border:1px solid #e0e0e0;">'
+            f'</iframe>',
+            height=290,
+        )
+
+    with info_col:
+        if address:
+            st.markdown(f"**Adres:** {address}")
+        if zone:
+            st.markdown(f"**Wijk:** {zone}")
+        st.markdown(f"**Coördinaten:** {lat:.5f}, {lng:.5f}")
+        st.markdown(
+            f'<a href="{maps_url}" target="_blank" '
+            f'style="display:inline-block;margin-top:8px;padding:8px 16px;'
+            f'background-color:#4285f4;color:white;border-radius:6px;'
+            f'text-decoration:none;font-size:14px;font-weight:500;">'
+            f'📍 Open in Google Maps</a>',
+            unsafe_allow_html=True,
+        )
+
+
+# ============================================================
 # LOCATIEANALYSE
 # ============================================================
 
 def _render_location_analysis(listing: dict, analysis: dict):
-    """Rendert de multi-factor locatiekwaliteitsanalyse."""
+    """Rendert de multi-factor locatiekwaliteitsanalyse met Google Maps preview."""
     location = analysis.get("location_quality", {})
     if not location:
         st.info("Geen locatieanalyse beschikbaar.")
@@ -397,6 +481,9 @@ def _render_location_analysis(listing: dict, analysis: dict):
         f'</div>',
         unsafe_allow_html=True,
     )
+
+    # Google Maps preview
+    _render_maps_preview(listing)
 
     factors = location.get("factors", [])
     positive = [f for f in factors if f["category"] == "positief"]
