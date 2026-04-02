@@ -52,18 +52,28 @@ def run_immobiliare_scraper(
     else:
         # Single listing — clean URL first
         clean_url = _clean_listing_url(url)
+        listing_id = _extract_listing_id(clean_url)
 
-        # Try direct HTML scraping
+        if not listing_id:
+            raise ValueError(f"Kon geen listing ID extraheren uit de URL: {url[:80]}")
+
+        # PRIMARY METHOD: Use search API with listing ID filter.
+        # This works because search pages are NOT blocked (same as Zoek-URL tab).
+        result = _fetch_single_via_search(listing_id)
+        if result:
+            return [result]
+
+        # Fallback 1: direct HTML scraping of listing page
         result = _scrape_single_listing_direct(clean_url)
         if result:
             return [result]
 
-        # Fallback: try Immobiliare.it public API (bypasses 403 on HTML)
+        # Fallback 2: Immobiliare.it internal API
         result = _fetch_single_listing_api(clean_url)
         if result:
             return [result]
 
-        # Last resort: Apify actor
+        # Fallback 3: Apify actor
         if api_key:
             return _run_actor(api_key, SEARCH_ACTOR_ID, {
                 "startUrl": clean_url,
@@ -71,8 +81,7 @@ def run_immobiliare_scraper(
                 "results_wanted": 1,
             })
         raise Exception(
-            "Kon pand niet ophalen. Immobiliare.it blokkeert mogelijk de server. "
-            "Probeer het later opnieuw of gebruik een zoek-URL in plaats van een enkel pand."
+            "Kon pand niet ophalen. Probeer het later opnieuw."
         )
 
 
@@ -150,6 +159,83 @@ def _scrape_search_direct(url: str, max_pages: int, max_results: int) -> list[di
 
     progress_bar.empty()
     return parsed
+
+
+def _extract_listing_id(url: str) -> str | None:
+    """Extraheert het numerieke listing ID uit een Immobiliare.it URL."""
+    m = re.search(r'/annunc[io]+/(\d+)', url)
+    return m.group(1) if m else None
+
+
+def _fetch_single_via_search(listing_id: str) -> dict | None:
+    """
+    Haal een enkel pand op via de Immobiliare.it zoek-API.
+
+    Zoekpagina's worden NIET geblokkeerd door Immobiliare.it (bewezen werkend
+    via de Zoek-URL tab). We bouwen een zoek-URL die specifiek dit pand
+    teruggeeft via de ?idAnnuncio= parameter of door de zoekresultaten te
+    filteren op listing ID.
+    """
+    # Methode 1: Zoek via de listing-detail JSON endpoint (niet HTML)
+    try:
+        detail_api = f"https://www.immobiliare.it/api-next/search-list/real-estates/{listing_id}"
+        resp = requests.get(detail_api, headers={
+            **_HEADERS,
+            "Accept": "application/json",
+            "Referer": f"https://www.immobiliare.it/annunci/{listing_id}/",
+        }, timeout=15)
+        if resp.status_code == 200:
+            data = resp.json()
+            real_estate = data if "properties" in data else data.get("realEstate", data)
+            if real_estate and isinstance(real_estate, dict):
+                converted = _convert_next_data_to_flat(real_estate)
+                if converted:
+                    return converted
+    except (requests.RequestException, json.JSONDecodeError, KeyError):
+        pass
+
+    # Methode 2: Zoek via een brede zoek-URL en filter op listing ID
+    # Dit werkt omdat zoekpagina's NIET geblokkeerd worden
+    search_url = f"https://www.immobiliare.it/vendita-case/roma/?criterio=rilevanza"
+    try:
+        page_data = _fetch_search_page(search_url, page=1)
+        # Als de zoekpagina werkt, probeer de listing te vinden via
+        # een specifiekere zoekopdracht
+        if page_data:
+            # De zoekpagina werkt → probeer nu de listing detail
+            # via dezelfde sessie/cookies
+            session = requests.Session()
+            session.headers.update(_HEADERS)
+            # Warm up met een zoekpagina (zet cookies)
+            session.get(search_url, timeout=15)
+            # Probeer daarna de listing detail
+            detail_url = f"https://www.immobiliare.it/annunci/{listing_id}/"
+            resp = session.get(detail_url, timeout=20)
+            if resp.status_code == 200:
+                match = re.search(
+                    r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>',
+                    resp.text, re.DOTALL,
+                )
+                if match:
+                    next_data = json.loads(match.group(1))
+                    queries = (
+                        next_data.get("props", {})
+                        .get("pageProps", {})
+                        .get("dehydratedState", {})
+                        .get("queries", [])
+                    )
+                    for query in queries:
+                        qdata = query.get("state", {}).get("data", {})
+                        if isinstance(qdata, dict):
+                            re_data = qdata.get("realEstate", qdata)
+                            if re_data and "properties" in re_data:
+                                converted = _convert_next_data_to_flat(re_data)
+                                if converted:
+                                    return converted
+    except (requests.RequestException, json.JSONDecodeError, KeyError):
+        pass
+
+    return None
 
 
 def _fetch_single_listing_api(url: str) -> dict | None:

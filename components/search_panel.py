@@ -4,10 +4,37 @@ Zoek/filter interface in de zijbalk.
 from __future__ import annotations
 
 
+import re
 import streamlit as st
 
 from services.apify_client import run_immobiliare_scraper, validate_immobiliare_url
 from services.parser import parse_uploaded_file, parse_json_data, filter_valid_listings
+
+
+def _sanitize_url(raw: str) -> str:
+    """
+    Schoont een door de gebruiker ingeplakte URL op.
+    Verwijdert: dubbele URLs, fragmenten (#foto20), witruimte, URL-encoded troep.
+    """
+    raw = raw.strip()
+    if not raw:
+        return raw
+
+    # Verwijder fragment
+    raw = raw.split("#")[0].strip()
+
+    # Detecteer dubbel-geplakte URLs
+    parts = re.split(r'(?=https?://)', raw)
+    valid = [p.strip() for p in parts if p.strip() and "immobiliare.it" in p]
+    if valid:
+        raw = max(valid, key=len)  # langste = meest compleet
+
+    # Extraheer listing ID als het een annunci-URL is
+    m = re.search(r'/annunc[io]+/(\d+)', raw)
+    if m:
+        return f"https://www.immobiliare.it/annunci/{m.group(1)}/"
+
+    return raw.strip()
 
 
 def render_search_panel():
@@ -91,16 +118,20 @@ def render_search_panel():
     # === TAB 2: ENKEL PAND ===
     with tab2:
         st.markdown("Plak de URL van **één pand** op Immobiliare.it.")
-        listing_url = st.text_input(
+        listing_url_raw = st.text_input(
             "Pand-URL",
-            placeholder="https://www.immobiliare.it/annunci/98765432/",
+            placeholder="https://www.immobiliare.it/annunci/127935180/",
             key="listing_url_input",
             label_visibility="collapsed",
         )
         if st.button("Analyseer Dit Pand", key="btn_listing", use_container_width=True):
-            if not listing_url:
+            if not listing_url_raw:
                 st.error("Voer een pand-URL in.")
             else:
+                # Schoon URL op (verwijder #fragment, dubbele URLs, etc.)
+                listing_url = _sanitize_url(listing_url_raw)
+                st.caption(f"Opgeschoonde URL: `{listing_url}`")
+
                 is_valid, url_type = validate_immobiliare_url(listing_url)
                 if not is_valid:
                     st.error("Ongeldige URL. Voer een Immobiliare.it URL in.")
