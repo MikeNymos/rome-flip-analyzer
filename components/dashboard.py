@@ -243,13 +243,13 @@ def _render_single_card(listing: dict, idx: int) -> bool:
 
         st.markdown(
             f'<div style="display:flex;align-items:center;gap:8px;margin:8px 0 4px 0;">'
-            f'<span style="background:linear-gradient(135deg,{color},{color}dd);color:white;padding:5px 14px;'
-            f'border-radius:12px;font-weight:700;font-size:1.05em;font-family:Inter,sans-serif;'
-            f'box-shadow:0 2px 6px {color}40;">{score}</span>'
-            f'<span style="color:#7A7672;font-size:0.82em;font-weight:500;">{label}</span>'
-            f'<span style="color:#B0AAA3;font-size:0.75em;margin-left:auto;'
+            f'<span style="background:linear-gradient(135deg,{color},{color}cc);color:white;padding:5px 14px;'
+            f'border-radius:10px;font-weight:700;font-size:1.05em;font-family:Inter,sans-serif;'
+            f'box-shadow:0 3px 10px {color}35;">{score}</span>'
+            f'<span style="color:#64748B;font-size:0.82em;font-weight:500;">{label}</span>'
+            f'<span style="color:#94A3B8;font-size:0.75em;margin-left:auto;'
             f'font-weight:500;text-transform:uppercase;letter-spacing:0.04em;">'
-            f'Locatie {loc_score}/100</span>'
+            f'📍 {loc_score}/100</span>'
             f'{heart_html}'
             f'</div>',
             unsafe_allow_html=True,
@@ -285,10 +285,10 @@ def _render_single_card(listing: dict, idx: int) -> bool:
                 st.markdown(
                     f'<a href="?sid={search_id}&url={encoded_url}" target="_blank" '
                     f'style="display:block;text-align:center;padding:0.5rem 0.75rem;'
-                    f'background:linear-gradient(135deg,#C9A24E,#B8913D);'
+                    f'background:linear-gradient(135deg,#E8956A,#D4764A);'
                     f'border-radius:12px;color:white;font-size:14px;'
                     f'text-decoration:none;line-height:1.6;font-weight:600;'
-                    f'font-family:Inter,sans-serif;box-shadow:0 2px 6px rgba(201,162,78,0.2);"'
+                    f'font-family:Inter,sans-serif;box-shadow:0 3px 10px rgba(232,149,106,0.25);"'
                     f'>Bekijk detail</a>',
                     unsafe_allow_html=True,
                 )
@@ -343,7 +343,7 @@ def _render_score_distribution(listings: list[dict]):
     st.subheader("Flip Score Verdeling")
     scores = [l.get("flip_score", 0) for l in listings]
     buckets = {"0-34": 0, "35-49": 0, "50-64": 0, "65-79": 0, "80-100": 0}
-    colors_list = ["#D4766C", "#D4916A", "#C9A24E", "#7D9B8A", "#5B8A72"]
+    colors_list = ["#EF4444", "#F97316", "#F59E0B", "#34D399", "#10B981"]
 
     for s in scores:
         if s >= 80: buckets["80-100"] += 1

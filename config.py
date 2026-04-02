@@ -6,47 +6,54 @@ from __future__ import annotations
 
 # === DESIGN SYSTEM ===
 DESIGN = {
-    # Light mode
-    "bg": "#F5F0EB",
-    "bg_alt": "#EDE7E0",
+    # Light mode — soft warm cream
+    "bg": "#FAF8F5",
+    "bg_alt": "#F3F0EC",
     "card_bg": "#FFFFFF",
-    "text_primary": "#1A1A1A",
-    "text_secondary": "#7A7672",
-    "text_muted": "#B0AAA3",
-    "accent": "#C9A24E",
-    "accent_light": "#E8D5A0",
-    "accent_dark": "#B8913D",
+    "text_primary": "#1A1A2E",
+    "text_secondary": "#64748B",
+    "text_muted": "#94A3B8",
+    "accent": "#E8956A",           # Warm coral — primary accent
+    "accent_light": "#FBE8DE",
+    "accent_dark": "#D4764A",
     "border": "rgba(0,0,0,0.06)",
-    "shadow": "0 2px 12px rgba(0,0,0,0.04)",
+    "shadow": "0 2px 16px rgba(0,0,0,0.05)",
     "card_radius": "20px",
-    # Sidebar
-    "sidebar_top": "#2C2520",
-    "sidebar_bottom": "#1E1A17",
-    "sidebar_text": "#E8E0D8",
-    "sidebar_muted": "#8A8078",
+    # Sidebar — modern dark slate (NOT brown)
+    "sidebar_top": "#1E1E2E",
+    "sidebar_bottom": "#151521",
+    "sidebar_text": "#E2E8F0",
+    "sidebar_muted": "#64748B",
     # Dark mode
-    "dark_bg": "#1A1714",
-    "dark_card": "#242018",
+    "dark_bg": "#0F0F1A",
+    "dark_card": "#1A1A2E",
     "dark_border": "rgba(255,255,255,0.08)",
-    "dark_text": "#E8E0D8",
-    "dark_text_secondary": "#A09890",
-    "dark_text_muted": "#6A6258",
-    "dark_sidebar_top": "#141210",
-    "dark_sidebar_bottom": "#0E0C0A",
-    # Score colors
-    "score_excellent": "#5B8A72",
-    "score_good": "#7D9B8A",
-    "score_fair": "#C9A24E",
-    "score_poor": "#D4916A",
-    "score_bad": "#D4766C",
+    "dark_text": "#E2E8F0",
+    "dark_text_secondary": "#94A3B8",
+    "dark_text_muted": "#475569",
+    "dark_sidebar_top": "#0A0A18",
+    "dark_sidebar_bottom": "#060612",
+    # Score gradient colors
+    "score_excellent": "#10B981",   # Emerald green
+    "score_good": "#34D399",        # Lighter green
+    "score_fair": "#F59E0B",        # Amber
+    "score_poor": "#F97316",        # Orange
+    "score_bad": "#EF4444",         # Red
     # Functional
-    "positive": "#5B8A72",
-    "negative": "#D4766C",
-    "warning": "#D4916A",
+    "positive": "#10B981",
+    "negative": "#EF4444",
+    "warning": "#F59E0B",
+    # Multi-color accents (like reference images)
+    "coral": "#E8956A",
+    "emerald": "#10B981",
+    "amber": "#F59E0B",
+    "rose": "#F472B6",
+    "indigo": "#818CF8",
+    "sky": "#38BDF8",
     # Plotly
     "plotly_colorway": [
-        "#C9A24E", "#7D9B8A", "#E8956A", "#4A6FA5",
-        "#C4A0B9", "#D4766C", "#8B7E6A", "#B0AAA3",
+        "#E8956A", "#10B981", "#818CF8", "#F59E0B",
+        "#F472B6", "#38BDF8", "#EF4444", "#94A3B8",
     ],
 }
 
@@ -118,11 +125,11 @@ PARAM_DESCRIPTIONS = {
 
 # Score interpretatie
 SCORE_LABELS = {
-    (80, 101): ("Uitstekend", "#5B8A72", "Topkandidaat, direct actie ondernemen"),
-    (65, 80): ("Goed", "#7D9B8A", "Interessant, nader onderzoek waard"),
-    (50, 65): ("Redelijk", "#C9A24E", "Potentieel, maar let op risico's"),
-    (35, 50): ("Matig", "#D4916A", "Waarschijnlijk niet winstgevend genoeg"),
-    (0, 35): ("Slecht", "#D4766C", "Afwijzen"),
+    (80, 101): ("Uitstekend", "#10B981", "Topkandidaat, direct actie ondernemen"),
+    (65, 80): ("Goed", "#34D399", "Interessant, nader onderzoek waard"),
+    (50, 65): ("Redelijk", "#F59E0B", "Potentieel, maar let op risico's"),
+    (35, 50): ("Matig", "#F97316", "Waarschijnlijk niet winstgevend genoeg"),
+    (0, 35): ("Slecht", "#EF4444", "Afwijzen"),
 }
 
 def get_score_label(score: int) -> tuple[str, str, str]:

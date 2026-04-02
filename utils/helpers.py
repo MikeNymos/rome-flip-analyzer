@@ -63,17 +63,17 @@ def safe_int(value, default=None):
 
 
 def score_color(score: int) -> str:
-    """Retourneert een kleur op basis van de flip score (warm palette)."""
+    """Retourneert een kleur op basis van de flip score."""
     if score >= 80:
-        return "#5B8A72"
+        return "#10B981"
     elif score >= 65:
-        return "#7D9B8A"
+        return "#34D399"
     elif score >= 50:
-        return "#C9A24E"
+        return "#F59E0B"
     elif score >= 35:
-        return "#D4916A"
+        return "#F97316"
     else:
-        return "#D4766C"
+        return "#EF4444"
 
 
 def score_emoji(score: int) -> str:

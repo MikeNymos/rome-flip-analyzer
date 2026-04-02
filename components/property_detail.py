@@ -134,7 +134,7 @@ def _render_photo_gallery(listing: dict):
       .thumb {{ min-width:100px; height:70px; object-fit:cover; border-radius:4px;
                 cursor:pointer; opacity:0.5; transition:opacity .2s; border:2px solid transparent; }}
       .thumb:hover {{ opacity:0.85; }}
-      .thumb.active {{ opacity:1; border-color:#C9A24E; }}
+      .thumb.active {{ opacity:1; border-color:#E8956A; }}
 
       /* Lightbox overlay */
       .lightbox {{ display:none; position:fixed; top:0; left:0; width:100%; height:100%;
@@ -164,7 +164,7 @@ def _render_photo_gallery(listing: dict):
                    cursor:pointer; opacity:0.4; transition:opacity .2s; border:2px solid transparent;
                    flex-shrink:0; }}
       .lb-thumb:hover {{ opacity:0.75; }}
-      .lb-thumb.active {{ opacity:1; border-color:#C9A24E; }}
+      .lb-thumb.active {{ opacity:1; border-color:#E8956A; }}
     </style>
 
     <div class="gallery" id="gal">
@@ -324,11 +324,11 @@ def _render_header(listing: dict, score_data: dict):
                 "borderwidth": 0,
                 "shape": "angular",
                 "steps": [
-                    {"range": [0, 35], "color": "rgba(212,118,108,0.08)"},
-                    {"range": [35, 50], "color": "rgba(212,145,106,0.08)"},
-                    {"range": [50, 65], "color": "rgba(201,162,78,0.08)"},
-                    {"range": [65, 80], "color": "rgba(125,155,138,0.08)"},
-                    {"range": [80, 100], "color": "rgba(91,138,114,0.08)"},
+                    {"range": [0, 35], "color": "rgba(239,68,68,0.08)"},
+                    {"range": [35, 50], "color": "rgba(249,115,22,0.08)"},
+                    {"range": [50, 65], "color": "rgba(245,158,11,0.08)"},
+                    {"range": [65, 80], "color": "rgba(52,211,153,0.08)"},
+                    {"range": [80, 100], "color": "rgba(16,185,129,0.08)"},
                 ],
             },
         ))
@@ -999,14 +999,14 @@ def _render_market_comp_card(comp: dict, idx: int):
             st.markdown(
                 '<div style="background:#EDE7E0;height:160px;display:flex;'
                 'align-items:center;justify-content:center;border-radius:12px;">'
-                '<span style="color:#B0AAA3;font-size:0.85em;">Geen foto</span></div>',
+                '<span style="color:#94A3B8;font-size:0.85em;">Geen foto</span></div>',
                 unsafe_allow_html=True,
             )
 
         # Prijs + prijs/m²
         st.markdown(
             f'<div style="margin:6px 0;">'
-            f'<span style="font-size:1.1em;font-weight:bold;color:#C9A24E;">'
+            f'<span style="font-size:1.1em;font-weight:bold;color:#E8956A;">'
             f'{format_eur(price)}</span>'
             f'<span style="color:#888;font-size:0.85em;margin-left:8px;">'
             f'{format_eur_per_m2(price_per_m2)}</span>'
@@ -1093,9 +1093,9 @@ def _render_maps_preview(listing: dict):
         st.markdown(
             f'<a href="{maps_url}" target="_blank" '
             f'style="display:inline-block;margin-top:8px;padding:8px 16px;'
-            f'background:linear-gradient(135deg,#C9A24E,#B8913D);color:white;border-radius:12px;'
+            f'background:linear-gradient(135deg,#E8956A,#D4764A);color:white;border-radius:12px;'
             f'text-decoration:none;font-size:14px;font-weight:600;font-family:Inter,sans-serif;'
-            f'box-shadow:0 2px 6px rgba(201,162,78,0.2);">'
+            f'box-shadow:0 3px 10px rgba(232,149,106,0.25);">'
             f'📍 Open in Google Maps</a>',
             unsafe_allow_html=True,
         )
@@ -1164,10 +1164,10 @@ def _render_pnl_table(analysis: dict):
     seconda = analysis.get("seconda_casa", analysis.get("conservative", {}))
 
     st.markdown(
-        '<div style="background:rgba(201,162,78,0.06);border-left:4px solid #C9A24E;'
+        '<div style="background:rgba(129,140,248,0.06);border-left:4px solid #818CF8;'
         'border-radius:0 12px 12px 0;padding:14px 18px;margin-bottom:16px;'
-        'font-family:Inter,sans-serif;font-size:0.88rem;color:#7A7672;line-height:1.5;">'
-        '<strong>Prima casa</strong> is het hoofdscenario: aankoop als eerste woning (2% registratiebelasting, '
+        'font-family:Inter,sans-serif;font-size:0.88rem;color:#64748B;line-height:1.5;">'
+        'ℹ️ <strong>Prima casa</strong> is het hoofdscenario: aankoop als eerste woning (2% registratiebelasting, '
         'geen meerwaardebelasting). <strong>Seconda casa</strong> ter vergelijking (9% belasting, 26% plusvalenza).'
         '</div>',
         unsafe_allow_html=True,
@@ -1176,7 +1176,7 @@ def _render_pnl_table(analysis: dict):
     def _row(label, p_val, s_val, bold=False, section=False):
         """Genereert een HTML tabelrij."""
         fw = "700" if bold else "400"
-        bg = "background:#2C2520;color:#E8E0D8;" if section else ""
+        bg = "background:#1E1E2E;color:#E2E8F0;" if section else ""
         td_style = f"padding:10px 16px;font-weight:{fw};border-bottom:1px solid rgba(0,0,0,0.04);"
         if section:
             return (f'<tr><td colspan="3" style="{bg}padding:10px 16px;font-weight:700;'
@@ -1186,8 +1186,8 @@ def _render_pnl_table(analysis: dict):
         if bold and "WINST" in label:
             p_num = prima.get("net_profit", 0)
             s_num = seconda.get("net_profit", 0)
-            color_p = f"color:{'#5B8A72' if p_num >= 0 else '#D4766C'};"
-            color_s = f"color:{'#5B8A72' if s_num >= 0 else '#D4766C'};"
+            color_p = f"color:{'#10B981' if p_num >= 0 else '#EF4444'};"
+            color_s = f"color:{'#10B981' if s_num >= 0 else '#EF4444'};"
         return (f'<tr><td style="{td_style}">{label}</td>'
                 f'<td style="{td_style}text-align:right;{color_p}">{p_val}</td>'
                 f'<td style="{td_style}text-align:right;{color_s}">{s_val}</td></tr>')
@@ -1217,15 +1217,15 @@ def _render_pnl_table(analysis: dict):
                 box-shadow:0 2px 12px rgba(0,0,0,0.04);font-family:Inter,sans-serif;font-size:0.9rem;">
       <table style="width:100%;border-collapse:collapse;">
         <thead>
-          <tr style="background:#FAF7F4;">
+          <tr style="background:#F8FAFC;">
             <th style="padding:12px 16px;text-align:left;font-weight:600;font-size:0.75rem;
-                       text-transform:uppercase;letter-spacing:0.06em;color:#B0AAA3;
+                       text-transform:uppercase;letter-spacing:0.06em;color:#94A3B8;
                        border-bottom:1px solid rgba(0,0,0,0.06);">Kostenpost</th>
             <th style="padding:12px 16px;text-align:right;font-weight:600;font-size:0.75rem;
-                       text-transform:uppercase;letter-spacing:0.06em;color:#B0AAA3;
+                       text-transform:uppercase;letter-spacing:0.06em;color:#94A3B8;
                        border-bottom:1px solid rgba(0,0,0,0.06);">Prima Casa (2%)</th>
             <th style="padding:12px 16px;text-align:right;font-weight:600;font-size:0.75rem;
-                       text-transform:uppercase;letter-spacing:0.06em;color:#B0AAA3;
+                       text-transform:uppercase;letter-spacing:0.06em;color:#94A3B8;
                        border-bottom:1px solid rgba(0,0,0,0.06);">Seconda Casa (9%)</th>
           </tr>
         </thead>
@@ -1278,9 +1278,9 @@ def _render_score_radar(score_data: dict):
         theta=categories + [categories[0]],
         fill="toself",
         name="Score",
-        line_color="#C9A24E",
-        fillcolor="rgba(201, 162, 78, 0.15)",
-        marker=dict(size=6, color="#C9A24E"),
+        line_color="#818CF8",
+        fillcolor="rgba(129, 140, 248, 0.12)",
+        marker=dict(size=6, color="#818CF8"),
     ))
     grid_color = "rgba(255,255,255,0.06)" if dark else "rgba(0,0,0,0.06)"
     tick_color = DESIGN["dark_text_muted"] if dark else DESIGN["text_muted"]
@@ -1342,10 +1342,10 @@ def _render_speed_and_confidence(listing: dict):
             total = comparables.get("batch_total", 1)
             rank = comparables.get("batch_rank_score", 1)
             st.markdown(
-                f'<div style="text-align:center;padding:16px;background:rgba(201,162,78,0.08);'
-                f'border:1px solid rgba(201,162,78,0.2);border-radius:12px;">'
-                f'<h2 style="margin:0;color:#C9A24E;">#{rank}/{total}</h2>'
-                f'<p style="margin:4px 0 0;font-weight:600;color:#7A7672;">Rangpositie (score)</p>'
+                f'<div style="text-align:center;padding:16px;background:rgba(129,140,248,0.08);'
+                f'border:1px solid rgba(129,140,248,0.2);border-radius:16px;">'
+                f'<h2 style="margin:0;color:#818CF8;">#{rank}/{total}</h2>'
+                f'<p style="margin:4px 0 0;font-weight:600;color:#64748B;">Rangpositie (score)</p>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -1391,19 +1391,19 @@ def _render_risk_flags(score_data: dict):
     risk_flags = score_data.get("risk_flags", [])
     if not risk_flags:
         st.markdown(
-            '<div style="background:rgba(91,138,114,0.08);border-left:4px solid #5B8A72;'
+            '<div style="background:rgba(16,185,129,0.06);border-left:4px solid #10B981;'
             'border-radius:0 12px 12px 0;padding:14px 18px;font-family:Inter,sans-serif;'
-            'font-size:0.9rem;color:#5B8A72;line-height:1.5;">'
-            'Geen risicovlaggen gevonden.</div>',
+            'font-size:0.9rem;color:#059669;line-height:1.5;">'
+            '✓ Geen risicovlaggen gevonden.</div>',
             unsafe_allow_html=True,
         )
     else:
         for flag in risk_flags:
             st.markdown(
-                f'<div style="background:rgba(212,145,106,0.08);border-left:4px solid #D4916A;'
+                f'<div style="background:rgba(249,115,22,0.06);border-left:4px solid #F97316;'
                 f'border-radius:0 12px 12px 0;padding:14px 18px;margin:8px 0;'
-                f'font-family:Inter,sans-serif;font-size:0.9rem;color:#8A6B2E;line-height:1.5;">'
-                f'{flag}</div>',
+                f'font-family:Inter,sans-serif;font-size:0.9rem;color:#9A3412;line-height:1.5;">'
+                f'⚠ {flag}</div>',
                 unsafe_allow_html=True,
             )
 

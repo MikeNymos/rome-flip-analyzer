@@ -98,11 +98,11 @@ def _render_favorite_card(listing: dict, fav_record: dict, idx: int, user_id: st
         # Score badge
         st.markdown(
             f'<div style="display:flex;align-items:center;gap:8px;margin:8px 0 4px 0;">'
-            f'<span style="background:linear-gradient(135deg,{color},{color}dd);color:white;padding:5px 14px;'
-            f'border-radius:12px;font-weight:700;font-size:1.05em;font-family:Inter,sans-serif;'
-            f'box-shadow:0 2px 6px {color}40;">{score}</span>'
-            f'<span style="color:#7A7672;font-size:0.82em;font-weight:500;">{label}</span>'
-            f'<span style="color:#D4766C;font-size:1.2em;margin-left:auto;">&#10084;</span>'
+            f'<span style="background:linear-gradient(135deg,{color},{color}cc);color:white;padding:5px 14px;'
+            f'border-radius:10px;font-weight:700;font-size:1.05em;font-family:Inter,sans-serif;'
+            f'box-shadow:0 3px 10px {color}35;">{score}</span>'
+            f'<span style="color:#64748B;font-size:0.82em;font-weight:500;">{label}</span>'
+            f'<span style="color:#EF4444;font-size:1.2em;margin-left:auto;">&#10084;</span>'
             f'</div>',
             unsafe_allow_html=True,
         )

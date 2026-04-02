@@ -71,13 +71,13 @@ def _render_comparison_chart():
         name="Te renoveren (gem. €/m²)",
         x=zones,
         y=unrenovated_mid,
-        marker_color="#D4916A",
+        marker_color="#F97316",
     ))
     fig.add_trace(go.Bar(
         name="Gerenoveerd (gem. €/m²)",
         x=zones,
         y=renovated_mid,
-        marker_color="#5B8A72",
+        marker_color="#10B981",
     ))
 
     dark = st.session_state.get("dark_mode", False)
@@ -110,7 +110,7 @@ def _render_growth_chart():
         go.Bar(
             x=zones,
             y=growth,
-            marker_color=["#C9A24E" if g >= 7 else "#7D9B8A" for g in growth],
+            marker_color=["#E8956A" if g >= 7 else "#818CF8" for g in growth],
             text=[f"{g:.1f}%" for g in growth],
             textposition="auto",
         )
