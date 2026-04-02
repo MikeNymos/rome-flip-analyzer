@@ -35,25 +35,168 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# === CUSTOM CSS ===
-st.markdown("""
-<style>
+# === DYNAMIC THEME CSS ===
+def _inject_theme_css():
+    """Injecteert CSS op basis van het huidige thema (light/dark)."""
+    dark = st.session_state.get("dark_mode", False)
+
+    common = """
     .stApp > header { background-color: transparent; }
-    div[data-testid="stMetric"] {
-        background-color: #f8f9fa;
-        border: 1px solid #e9ecef;
-        border-radius: 8px;
-        padding: 12px 16px;
-    }
-    div[data-testid="stMetric"] label { color: #1a365d; }
     .stTabs [data-baseweb="tab-list"] { gap: 8px; }
     .stTabs [data-baseweb="tab"] { padding: 8px 20px; }
-    /* Hide full-width container padding for tab buttons */
-    div[data-testid="stHorizontalBlock"] > div > div > button[kind="secondary"] {
-        border-color: #e0e0e0;
-    }
-</style>
-""", unsafe_allow_html=True)
+    """
+
+    if dark:
+        theme = """
+        /* ===== DARK MODE ===== */
+        .stApp { background-color: #0e1117; }
+        section[data-testid="stSidebar"] { background-color: #16192b; }
+        section[data-testid="stSidebar"] .stMarkdown,
+        section[data-testid="stSidebar"] p,
+        section[data-testid="stSidebar"] span,
+        section[data-testid="stSidebar"] label,
+        section[data-testid="stSidebar"] .stCaption p {
+            color: #e2e8f0 !important;
+        }
+
+        /* Headings */
+        .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5 { color: #f7fafc !important; }
+
+        /* Text */
+        .stMarkdown, .stMarkdown p, .stMarkdown li, .stMarkdown td, .stMarkdown th,
+        .stMarkdown strong, .stMarkdown em, .stMarkdown span {
+            color: #e2e8f0 !important;
+        }
+        .stCaption, [data-testid="stCaptionContainer"] p { color: #a0aec0 !important; }
+
+        /* Metric cards */
+        div[data-testid="stMetric"] {
+            background-color: #1a1f36 !important;
+            border: 1px solid #2d3748 !important;
+            border-radius: 8px;
+            padding: 12px 16px;
+        }
+        div[data-testid="stMetric"] label { color: #a0aec0 !important; }
+        div[data-testid="stMetric"] [data-testid="stMetricValue"] { color: #f7fafc !important; }
+        div[data-testid="stMetric"] [data-testid="stMetricDelta"] { color: #a0aec0 !important; }
+
+        /* Inputs */
+        .stTextInput input, .stNumberInput input, .stTextArea textarea {
+            background-color: #1a1f36 !important;
+            color: #e2e8f0 !important;
+            border-color: #2d3748 !important;
+        }
+        .stTextInput label, .stNumberInput label, .stTextArea label,
+        .stSelectbox label, .stSlider label, .stCheckbox label {
+            color: #e2e8f0 !important;
+        }
+        [data-baseweb="select"] > div { background-color: #1a1f36 !important; }
+        [data-baseweb="select"] span { color: #e2e8f0 !important; }
+        [data-baseweb="popover"] > div { background-color: #1a1f36 !important; }
+        [data-baseweb="menu"] { background-color: #1a1f36 !important; }
+        [data-baseweb="menu"] li { color: #e2e8f0 !important; }
+        [data-baseweb="menu"] li:hover { background-color: #2d3748 !important; }
+
+        /* Expander */
+        [data-testid="stExpander"] { border-color: #2d3748 !important; }
+        .streamlit-expanderHeader, [data-testid="stExpanderToggleDetails"] summary span {
+            color: #e2e8f0 !important;
+        }
+
+        /* Containers with border */
+        [data-testid="stVerticalBlockBorderWrapper"] {
+            border-color: #2d3748 !important;
+            background-color: #0e1117 !important;
+        }
+
+        /* Buttons */
+        button[kind="secondary"] {
+            background-color: #1a1f36 !important;
+            color: #e2e8f0 !important;
+            border-color: #2d3748 !important;
+        }
+        button[kind="primary"] {
+            background-color: #2b6cb0 !important;
+            color: white !important;
+        }
+
+        /* Tabs */
+        .stTabs [data-baseweb="tab"] { color: #a0aec0 !important; }
+        .stTabs [data-baseweb="tab"][aria-selected="true"] { color: #f7fafc !important; }
+        .stTabs [data-baseweb="tab-border"] { background-color: #2d3748 !important; }
+        .stTabs [data-baseweb="tab-highlight"] { background-color: #2b6cb0 !important; }
+
+        /* Tables */
+        .stMarkdown table { border-color: #2d3748 !important; }
+        .stMarkdown table th { background-color: #16192b !important; color: #f7fafc !important; border-color: #2d3748 !important; }
+        .stMarkdown table td { color: #e2e8f0 !important; border-color: #2d3748 !important; }
+
+        /* Info/warning/success/error boxes */
+        [data-testid="stAlert"] > div { background-color: #1a2332 !important; color: #e2e8f0 !important; }
+
+        /* Divider */
+        hr, [data-testid="stSeparator"] { border-color: #2d3748 !important; }
+
+        /* Links */
+        a { color: #63b3ed !important; }
+
+        /* Download button */
+        [data-testid="stDownloadButton"] button {
+            background-color: #1a1f36 !important;
+            color: #e2e8f0 !important;
+            border-color: #2d3748 !important;
+        }
+
+        /* Form border */
+        [data-testid="stForm"] { border-color: #2d3748 !important; }
+
+        /* Slider track */
+        [data-testid="stSlider"] [data-baseweb="slider"] div[role="slider"] {
+            background-color: #2b6cb0 !important;
+        }
+
+        /* Override inline styles on our custom HTML */
+        .stApp [style*="color: #1a365d"],
+        .stApp [style*="color:#1a365d"] { color: #90cdf4 !important; }
+        .stApp [style*="color: #555"],
+        .stApp [style*="color:#555"] { color: #a0aec0 !important; }
+        .stApp [style*="color: #888"],
+        .stApp [style*="color:#888"] { color: #718096 !important; }
+        .stApp [style*="color: #c9a026"],
+        .stApp [style*="color:#c9a026"] { color: #d4af37 !important; }
+        .stApp [style*="background-color: #f8f9fa"],
+        .stApp [style*="background:#f8f9fa"] { background-color: #1a1f36 !important; }
+        .stApp [style*="border: 1px solid #e9ecef"],
+        .stApp [style*="border:1px solid #e9ecef"] { border-color: #2d3748 !important; }
+        .stApp [style*="color: rgb(49, 51, 63)"],
+        .stApp [style*="color:rgb(49,51,63)"] { color: #e2e8f0 !important; }
+        .stApp [style*="background-color:white"],
+        .stApp [style*="background-color: white"] { background-color: #1a1f36 !important; }
+        .stApp [style*="border: 1px solid rgba(49,51,63,0.2)"],
+        .stApp [style*="border:1px solid rgba(49,51,63,0.2)"] { border-color: #2d3748 !important; }
+
+        /* Spinner */
+        [data-testid="stSpinner"] p { color: #a0aec0 !important; }
+        """
+    else:
+        theme = """
+        /* ===== LIGHT MODE ===== */
+        div[data-testid="stMetric"] {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 12px 16px;
+        }
+        div[data-testid="stMetric"] label { color: #1a365d; }
+        div[data-testid="stHorizontalBlock"] > div > div > button[kind="secondary"] {
+            border-color: #e0e0e0;
+        }
+        """
+
+    st.markdown(f"<style>{common}{theme}</style>", unsafe_allow_html=True)
+
+
+_inject_theme_css()
 
 
 def init_session_state():
@@ -72,6 +215,8 @@ def init_session_state():
         st.session_state["export_pdf"] = False
     if "property_overrides" not in st.session_state:
         st.session_state["property_overrides"] = {}
+    if "dark_mode" not in st.session_state:
+        st.session_state["dark_mode"] = False
 
 
 def analyze_listings(listings: list[dict], params: dict) -> list[dict]:
@@ -180,12 +325,23 @@ def _handle_direct_detail_link() -> bool:
     score_data = listing.get("score_data", {})
     params = DEFAULT_PARAMS.copy()
 
-    # Minimal header
-    st.markdown(
-        "<h2 style='color: #1a365d; margin-bottom: 0;'>Rome Flip Analyzer</h2>"
-        "<p style='color: #c9a026; font-size: 0.9em; margin-top: 0;'>Pand Detail</p>",
-        unsafe_allow_html=True,
-    )
+    # Dark mode toggle voor direct-link pagina
+    dm_col1, dm_col2 = st.columns([4, 1])
+    with dm_col1:
+        st.markdown(
+            "<h2 style='color: #1a365d; margin-bottom: 0;'>Rome Flip Analyzer</h2>"
+            "<p style='color: #c9a026; font-size: 0.9em; margin-top: 0;'>Pand Detail</p>",
+            unsafe_allow_html=True,
+        )
+    with dm_col2:
+        dark_mode = st.toggle(
+            "Donker",
+            value=st.session_state.get("dark_mode", False),
+            key="detail_dark_toggle",
+        )
+        if dark_mode != st.session_state.get("dark_mode", False):
+            st.session_state["dark_mode"] = dark_mode
+            st.rerun()
     st.divider()
 
     # render_property_detail handles PDF export internally via _render_actions
@@ -218,6 +374,16 @@ def main():
         "<p style='color: #c9a026; font-size: 0.9em; margin-top: 0;'>Vastgoed Investeringsanalyse</p>",
         unsafe_allow_html=True,
     )
+
+    # Dark mode toggle
+    dark_mode = st.sidebar.toggle(
+        "Donkere modus",
+        value=st.session_state.get("dark_mode", False),
+        key="dark_mode_toggle",
+    )
+    if dark_mode != st.session_state.get("dark_mode", False):
+        st.session_state["dark_mode"] = dark_mode
+        st.rerun()
 
     # User info + uitlogknop
     if user:
