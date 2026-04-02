@@ -600,22 +600,23 @@ def _render_maps_preview(listing: dict):
     maps_url = f"https://www.google.com/maps/search/?api=1&query={lat},{lng}"
 
     # OpenStreetMap embed (gratis, geen API key nodig)
+    # Bbox: ~500m radius → ~1km totaalbeeld
     osm_embed = (
         f"https://www.openstreetmap.org/export/embed.html?"
-        f"bbox={lng-0.005},{lat-0.003},{lng+0.005},{lat+0.003}"
+        f"bbox={lng-0.003},{lat-0.0025},{lng+0.003},{lat+0.0025}"
         f"&layer=mapnik&marker={lat},{lng}"
     )
 
-    map_col, info_col = st.columns([2, 1])
+    map_col, info_col = st.columns([1, 1])
 
     with map_col:
         components.html(
-            f'<iframe width="100%" height="280" frameborder="0" scrolling="no" '
+            f'<iframe width="100%" height="250" frameborder="0" scrolling="no" '
             f'marginheight="0" marginwidth="0" '
             f'src="{osm_embed}" '
             f'style="border-radius:8px;border:1px solid #e0e0e0;">'
             f'</iframe>',
-            height=290,
+            height=260,
         )
 
     with info_col:
