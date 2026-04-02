@@ -52,10 +52,10 @@ class FlipReportPDF(FPDF):
 
     def header(self):
         self.set_font("Helvetica", "B", 10)
-        self.set_text_color(26, 54, 93)  # Donkerblauw
+        self.set_text_color(44, 37, 32)  # Donkerblauw
         super().cell(0, 8, "Rome Flip Analyzer - Nymos", align="L")
         self.cell(0, 8, datetime.now().strftime("%d-%m-%Y"), align="R", new_x="LMARGIN", new_y="NEXT")
-        self.set_draw_color(201, 160, 38)  # Goud
+        self.set_draw_color(201, 162, 78)  # Goud
         self.set_line_width(0.5)
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(4)
@@ -68,13 +68,13 @@ class FlipReportPDF(FPDF):
 
     def section_title(self, title: str):
         self.set_font("Helvetica", "B", 14)
-        self.set_text_color(26, 54, 93)
+        self.set_text_color(44, 37, 32)
         self.cell(0, 10, title, new_x="LMARGIN", new_y="NEXT")
         self.ln(2)
 
     def subsection_title(self, title: str):
         self.set_font("Helvetica", "B", 11)
-        self.set_text_color(26, 54, 93)
+        self.set_text_color(44, 37, 32)
         self.cell(0, 8, title, new_x="LMARGIN", new_y="NEXT")
         self.ln(1)
 
@@ -134,10 +134,10 @@ def generate_batch_report(analyzed_listings: list[dict], params: dict) -> bytes:
     pdf.add_page()
     pdf.ln(40)
     pdf.set_font("Helvetica", "B", 28)
-    pdf.set_text_color(26, 54, 93)
+    pdf.set_text_color(44, 37, 32)
     pdf.cell(0, 15, "Rome Flip Analyzer", align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "", 16)
-    pdf.set_text_color(201, 160, 38)
+    pdf.set_text_color(201, 162, 78)
     pdf.cell(0, 10, "Batch Analyse Rapport", align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(10)
     pdf.set_font("Helvetica", "", 12)
@@ -154,7 +154,7 @@ def generate_batch_report(analyzed_listings: list[dict], params: dict) -> bytes:
 
     # Tabel header
     pdf.set_font("Helvetica", "B", 9)
-    pdf.set_fill_color(26, 54, 93)
+    pdf.set_fill_color(44, 37, 32)
     pdf.set_text_color(255, 255, 255)
 
     col_widths = [12, 40, 28, 20, 28, 28, 34]
@@ -177,11 +177,11 @@ def generate_batch_report(analyzed_listings: list[dict], params: dict) -> bytes:
 
         # Achtergrondkleur op basis van score
         if score >= 65:
-            pdf.set_fill_color(220, 255, 220)
+            pdf.set_fill_color(232, 240, 232)
         elif score >= 50:
-            pdf.set_fill_color(255, 250, 220)
+            pdf.set_fill_color(253, 246, 236)
         else:
-            pdf.set_fill_color(255, 230, 230)
+            pdf.set_fill_color(253, 240, 238)
 
         fill = True
         zone = listing.get("zone", "Onbekend")[:20]
@@ -244,7 +244,7 @@ def _render_summary_page(pdf: FlipReportPDF, listing: dict, analysis: dict, scor
 
     # Titel
     pdf.set_font("Helvetica", "B", 18)
-    pdf.set_text_color(26, 54, 93)
+    pdf.set_text_color(44, 37, 32)
     title = listing.get("title", "Onbekend pand")
     if len(title) > 60:
         title = title[:57] + "..."
@@ -302,7 +302,7 @@ def _render_summary_page(pdf: FlipReportPDF, listing: dict, analysis: dict, scor
         pdf.section_title("Risicovlaggen")
         for flag in risk_flags:
             pdf.set_font("Helvetica", "", 10)
-            pdf.set_text_color(192, 57, 43)
+            pdf.set_text_color(212, 118, 108)
             pdf.cell(5, 6, "!", new_x="END")
             pdf.set_text_color(0, 0, 0)
             pdf.cell(0, 6, f"  {flag}", new_x="LMARGIN", new_y="NEXT")
@@ -317,7 +317,7 @@ def _render_pnl_page(pdf: FlipReportPDF, analysis: dict):
 
     # Tabel header
     pdf.set_font("Helvetica", "B", 9)
-    pdf.set_fill_color(26, 54, 93)
+    pdf.set_fill_color(44, 37, 32)
     pdf.set_text_color(255, 255, 255)
     pdf.cell(70, 7, "Kostenpost", border=1, fill=True)
     pdf.cell(55, 7, "Prima Casa (2%)", border=1, align="C", fill=True)
@@ -396,7 +396,7 @@ def _render_analysis_page(pdf: FlipReportPDF, listing: dict, analysis: dict, sco
     scenarios = calculate_sensitivity(listing, params)
 
     pdf.set_font("Helvetica", "B", 9)
-    pdf.set_fill_color(26, 54, 93)
+    pdf.set_fill_color(44, 37, 32)
     pdf.set_text_color(255, 255, 255)
     pdf.cell(55, 7, "Scenario", border=1, fill=True)
     pdf.cell(30, 7, "Mid. ROI", border=1, align="C", fill=True)
@@ -441,9 +441,9 @@ def _render_analysis_page(pdf: FlipReportPDF, listing: dict, analysis: dict, sco
             impact = factor.get("impact", 0)
             pdf.set_font("Helvetica", "B", 9)
             if cat == "positief":
-                pdf.set_text_color(45, 138, 78)
+                pdf.set_text_color(91, 138, 114)
             elif cat == "negatief":
-                pdf.set_text_color(192, 57, 43)
+                pdf.set_text_color(212, 118, 108)
             else:
                 pdf.set_text_color(100, 100, 100)
             pdf.cell(0, 5, f"{prefix} {factor['name']} ({impact:+d} punten)", new_x="LMARGIN", new_y="NEXT")

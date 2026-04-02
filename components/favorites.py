@@ -89,19 +89,20 @@ def _render_favorite_card(listing: dict, fav_record: dict, idx: int, user_id: st
             _render_fav_image(images, idx)
         else:
             st.markdown(
-                '<div style="background:#e9ecef;height:180px;display:flex;'
-                'align-items:center;justify-content:center;border-radius:6px;">'
-                '<span style="color:#6c757d;font-size:0.9em;">Geen foto</span></div>',
+                '<div style="background:#EDE7E0;height:180px;display:flex;'
+                'align-items:center;justify-content:center;border-radius:12px;">'
+                '<span style="color:#B0AAA3;font-size:0.9em;">Geen foto</span></div>',
                 unsafe_allow_html=True,
             )
 
         # Score badge
         st.markdown(
             f'<div style="display:flex;align-items:center;gap:8px;margin:8px 0 4px 0;">'
-            f'<span style="background:{color};color:white;padding:4px 14px;'
-            f'border-radius:20px;font-weight:bold;font-size:1.1em;">{score}</span>'
-            f'<span style="color:#555;font-size:0.85em;">{label}</span>'
-            f'<span style="color:#e53e3e;font-size:1.2em;margin-left:auto;">&#10084;</span>'
+            f'<span style="background:linear-gradient(135deg,{color},{color}dd);color:white;padding:5px 14px;'
+            f'border-radius:12px;font-weight:700;font-size:1.05em;font-family:Inter,sans-serif;'
+            f'box-shadow:0 2px 6px {color}40;">{score}</span>'
+            f'<span style="color:#7A7672;font-size:0.82em;font-weight:500;">{label}</span>'
+            f'<span style="color:#D4766C;font-size:1.2em;margin-left:auto;">&#10084;</span>'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -157,7 +158,7 @@ def _render_fav_image(images: list[str], idx: int):
         # Enkele afbeelding
         st.markdown(
             f'<img src="{imgs[0]}" '
-            f'style="width:100%;height:180px;object-fit:cover;border-radius:6px;" loading="lazy">',
+            f'style="width:100%;height:180px;object-fit:cover;border-radius:12px;" loading="lazy">',
             unsafe_allow_html=True,
         )
         return
@@ -165,7 +166,7 @@ def _render_fav_image(images: list[str], idx: int):
     imgs_json = json.dumps(imgs)
     html = f"""
     <div id="fav-carousel-{idx}" style="position:relative;width:100%;height:180px;
-         border-radius:6px;overflow:hidden;background:#e9ecef;">
+         border-radius:12px;overflow:hidden;background:#EDE7E0;">
       <img id="fav-img-{idx}" src="{imgs[0]}"
            style="width:100%;height:180px;object-fit:cover;" loading="lazy">
       <button onclick="favNav({idx},-1)" style="position:absolute;left:0;top:0;width:32px;

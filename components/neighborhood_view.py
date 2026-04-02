@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from data.neighborhoods import NEIGHBORHOOD_BENCHMARKS, DEFAULT_BENCHMARK
-from utils.helpers import format_eur_per_m2, format_pct
+from utils.helpers import format_eur_per_m2, format_pct, get_plotly_layout
 
 
 def render_neighborhood_view():
@@ -71,21 +71,23 @@ def _render_comparison_chart():
         name="Te renoveren (gem. €/m²)",
         x=zones,
         y=unrenovated_mid,
-        marker_color="#c0392b",
+        marker_color="#D4916A",
     ))
     fig.add_trace(go.Bar(
         name="Gerenoveerd (gem. €/m²)",
         x=zones,
         y=renovated_mid,
-        marker_color="#2d8a4e",
+        marker_color="#5B8A72",
     ))
 
+    dark = st.session_state.get("dark_mode", False)
     fig.update_layout(
         barmode="group",
         height=400,
         margin=dict(l=20, r=20, t=30, b=20),
         yaxis_title="€/m²",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        **get_plotly_layout(dark),
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -108,17 +110,19 @@ def _render_growth_chart():
         go.Bar(
             x=zones,
             y=growth,
-            marker_color=["#c9a026" if g >= 7 else "#1a365d" for g in growth],
+            marker_color=["#C9A24E" if g >= 7 else "#7D9B8A" for g in growth],
             text=[f"{g:.1f}%" for g in growth],
             textposition="auto",
         )
     ])
 
+    dark = st.session_state.get("dark_mode", False)
     fig.update_layout(
         height=350,
         margin=dict(l=20, r=20, t=30, b=20),
         yaxis_title="Groei (%)",
         showlegend=False,
+        **get_plotly_layout(dark),
     )
 
     st.plotly_chart(fig, use_container_width=True)

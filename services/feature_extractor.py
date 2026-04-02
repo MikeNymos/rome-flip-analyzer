@@ -344,25 +344,25 @@ STREET_TIERS = {
         "label": "Premium straat",
         "label_short": "A-straat (premium)",
         "adjustment_pct": 0.06,
-        "color": "#2d8a4e",
+        "color": "#5B8A72",
     },
     "B": {
         "label": "Goede straat",
         "label_short": "B-straat (goed)",
         "adjustment_pct": 0.03,
-        "color": "#3da55d",
+        "color": "#7D9B8A",
     },
     "C": {
         "label": "Gemiddelde straat",
         "label_short": "C-straat (gemiddeld)",
         "adjustment_pct": 0.0,
-        "color": "#d4a017",
+        "color": "#C9A24E",
     },
     "D": {
         "label": "Minder gewilde straat",
         "label_short": "D-straat (minder gewild)",
         "adjustment_pct": -0.04,
-        "color": "#e07c24",
+        "color": "#D4916A",
     },
 }
 

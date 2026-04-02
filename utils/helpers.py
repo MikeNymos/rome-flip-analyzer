@@ -63,28 +63,44 @@ def safe_int(value, default=None):
 
 
 def score_color(score: int) -> str:
-    """Retourneert een kleur op basis van de flip score."""
+    """Retourneert een kleur op basis van de flip score (warm palette)."""
     if score >= 80:
-        return "#2d8a4e"
+        return "#5B8A72"
     elif score >= 65:
-        return "#3da55d"
+        return "#7D9B8A"
     elif score >= 50:
-        return "#d4a017"
+        return "#C9A24E"
     elif score >= 35:
-        return "#e07c24"
+        return "#D4916A"
     else:
-        return "#c0392b"
+        return "#D4766C"
 
 
 def score_emoji(score: int) -> str:
-    """Retourneert sterren op basis van de flip score."""
+    """Retourneert een label op basis van de flip score."""
     if score >= 80:
-        return "★★★★★"
+        return "Uitstekend"
     elif score >= 65:
-        return "★★★★"
+        return "Goed"
     elif score >= 50:
-        return "★★★"
+        return "Redelijk"
     elif score >= 35:
-        return "★★"
+        return "Matig"
     else:
-        return "★"
+        return "Slecht"
+
+
+def get_plotly_layout(dark_mode: bool = False) -> dict:
+    """Returns base Plotly layout kwargs matching the warm premium theme."""
+    from config import DESIGN
+    base = {
+        "paper_bgcolor": "rgba(0,0,0,0)",
+        "plot_bgcolor": "rgba(0,0,0,0)",
+        "font": {"family": "Inter, -apple-system, sans-serif", "size": 12},
+        "colorway": DESIGN["plotly_colorway"],
+    }
+    if dark_mode:
+        base["font"]["color"] = DESIGN["dark_text_secondary"]
+    else:
+        base["font"]["color"] = DESIGN["text_secondary"]
+    return base

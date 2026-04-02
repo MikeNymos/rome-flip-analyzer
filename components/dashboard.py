@@ -11,8 +11,8 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-from utils.helpers import format_eur, format_pct, format_m2, format_eur_per_m2, score_color
-from config import get_score_label
+from utils.helpers import format_eur, format_pct, format_m2, format_eur_per_m2, score_color, get_plotly_layout
+from config import get_score_label, DESIGN
 from services.auth import is_logged_in, get_current_user
 from services.database import toggle_favorite, is_favorite
 
@@ -149,7 +149,7 @@ def _render_image_carousel(images: list[str], idx: int):
 
     html = f"""
     <div id="carousel-{idx}" style="position:relative;width:100%;height:200px;
-         border-radius:6px;overflow:hidden;background:#e9ecef;">
+         border-radius:12px;overflow:hidden;background:#EDE7E0;">
       <img id="img-{idx}" src="{imgs[0]}"
            style="width:100%;height:200px;object-fit:cover;" loading="lazy">
       <button onclick="nav({idx},-1)" style="position:absolute;left:0;top:0;width:36px;
@@ -215,9 +215,9 @@ def _render_single_card(listing: dict, idx: int) -> bool:
             _render_image_carousel(images, idx)
         else:
             st.markdown(
-                '<div style="background:#e9ecef;height:200px;display:flex;'
-                'align-items:center;justify-content:center;border-radius:6px;">'
-                '<span style="color:#6c757d;font-size:0.9em;">Geen foto</span></div>',
+                '<div style="background:#EDE7E0;height:200px;display:flex;'
+                'align-items:center;justify-content:center;border-radius:12px;">'
+                '<span style="color:#B0AAA3;font-size:0.9em;">Geen foto</span></div>',
                 unsafe_allow_html=True,
             )
 
@@ -243,11 +243,13 @@ def _render_single_card(listing: dict, idx: int) -> bool:
 
         st.markdown(
             f'<div style="display:flex;align-items:center;gap:8px;margin:8px 0 4px 0;">'
-            f'<span style="background:{color};color:white;padding:4px 14px;'
-            f'border-radius:20px;font-weight:bold;font-size:1.1em;">{score}</span>'
-            f'<span style="color:#555;font-size:0.85em;">{label}</span>'
-            f'<span style="color:#888;font-size:0.8em;margin-left:auto;">'
-            f'Locatie: {loc_score}/100</span>'
+            f'<span style="background:linear-gradient(135deg,{color},{color}dd);color:white;padding:5px 14px;'
+            f'border-radius:12px;font-weight:700;font-size:1.05em;font-family:Inter,sans-serif;'
+            f'box-shadow:0 2px 6px {color}40;">{score}</span>'
+            f'<span style="color:#7A7672;font-size:0.82em;font-weight:500;">{label}</span>'
+            f'<span style="color:#B0AAA3;font-size:0.75em;margin-left:auto;'
+            f'font-weight:500;text-transform:uppercase;letter-spacing:0.04em;">'
+            f'Locatie {loc_score}/100</span>'
             f'{heart_html}'
             f'</div>',
             unsafe_allow_html=True,
@@ -282,10 +284,11 @@ def _render_single_card(listing: dict, idx: int) -> bool:
                 encoded_url = quote(listing_url, safe="")
                 st.markdown(
                     f'<a href="?sid={search_id}&url={encoded_url}" target="_blank" '
-                    f'style="display:block;text-align:center;padding:0.4rem 0.75rem;'
-                    f'background-color:white;border:1px solid rgba(49,51,63,0.2);'
-                    f'border-radius:0.5rem;color:rgb(49,51,63);font-size:14px;'
-                    f'text-decoration:none;line-height:1.6;font-weight:400;"'
+                    f'style="display:block;text-align:center;padding:0.5rem 0.75rem;'
+                    f'background:linear-gradient(135deg,#C9A24E,#B8913D);'
+                    f'border-radius:12px;color:white;font-size:14px;'
+                    f'text-decoration:none;line-height:1.6;font-weight:600;'
+                    f'font-family:Inter,sans-serif;box-shadow:0 2px 6px rgba(201,162,78,0.2);"'
                     f'>Bekijk detail</a>',
                     unsafe_allow_html=True,
                 )
@@ -324,13 +327,14 @@ def _render_roi_scatter(listings: list[dict]):
     if df.empty:
         return
 
+    dark = st.session_state.get("dark_mode", False)
     fig = px.scatter(
         df, x="Aankoopprijs", y="ROI Prima Casa (%)", color="Wijk",
         size="Flip Score", hover_data=["m2", "Flip Score"],
-        color_discrete_sequence=px.colors.qualitative.Set2,
+        color_discrete_sequence=DESIGN["plotly_colorway"],
     )
-    fig.update_layout(height=400, margin=dict(l=20, r=20, t=30, b=20))
-    fig.add_hline(y=15, line_dash="dash", line_color="gray", annotation_text="Min. ROI 15%")
+    fig.update_layout(height=400, margin=dict(l=20, r=20, t=30, b=20), **get_plotly_layout(dark))
+    fig.add_hline(y=15, line_dash="dash", line_color="#B0AAA3", annotation_text="Min. ROI 15%")
     st.plotly_chart(fig, use_container_width=True)
 
 
@@ -339,7 +343,7 @@ def _render_score_distribution(listings: list[dict]):
     st.subheader("Flip Score Verdeling")
     scores = [l.get("flip_score", 0) for l in listings]
     buckets = {"0-34": 0, "35-49": 0, "50-64": 0, "65-79": 0, "80-100": 0}
-    colors_list = ["#c0392b", "#e07c24", "#d4a017", "#3da55d", "#2d8a4e"]
+    colors_list = ["#D4766C", "#D4916A", "#C9A24E", "#7D9B8A", "#5B8A72"]
 
     for s in scores:
         if s >= 80: buckets["80-100"] += 1
@@ -351,5 +355,6 @@ def _render_score_distribution(listings: list[dict]):
     fig = go.Figure(data=[go.Bar(
         x=list(buckets.keys()), y=list(buckets.values()), marker_color=colors_list,
     )])
-    fig.update_layout(height=400, margin=dict(l=20, r=20, t=30, b=20), showlegend=False)
+    dark = st.session_state.get("dark_mode", False)
+    fig.update_layout(height=400, margin=dict(l=20, r=20, t=30, b=20), showlegend=False, **get_plotly_layout(dark))
     st.plotly_chart(fig, use_container_width=True)

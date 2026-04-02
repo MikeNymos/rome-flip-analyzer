@@ -9,8 +9,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 import plotly.graph_objects as go
 
-from utils.helpers import format_eur, format_pct, format_m2, format_eur_per_m2, score_color
-from config import get_score_label
+from utils.helpers import format_eur, format_pct, format_m2, format_eur_per_m2, score_color, get_plotly_layout
+from config import get_score_label, DESIGN
 from data.constants import CONDITION_MAP
 from models.financial import calculate_investment_analysis, calculate_sensitivity
 from models.scoring import calculate_flip_score
@@ -113,7 +113,7 @@ def _render_photo_gallery(listing: dict):
     html = f"""
     <style>
       * {{ margin:0; padding:0; box-sizing:border-box; }}
-      .gallery {{ position:relative; width:100%; background:#111; border-radius:8px; overflow:hidden; }}
+      .gallery {{ position:relative; width:100%; background:#1A1714; border-radius:12px; overflow:hidden; }}
       .main-img {{ width:100%; height:480px; object-fit:contain; display:block; cursor:pointer; }}
       .arrow {{ position:absolute; top:50%; transform:translateY(-50%); width:48px; height:48px;
                 background:rgba(0,0,0,0.45); border:none; color:#fff; font-size:28px;
@@ -134,7 +134,7 @@ def _render_photo_gallery(listing: dict):
       .thumb {{ min-width:100px; height:70px; object-fit:cover; border-radius:4px;
                 cursor:pointer; opacity:0.5; transition:opacity .2s; border:2px solid transparent; }}
       .thumb:hover {{ opacity:0.85; }}
-      .thumb.active {{ opacity:1; border-color:#1a365d; }}
+      .thumb.active {{ opacity:1; border-color:#C9A24E; }}
 
       /* Lightbox overlay */
       .lightbox {{ display:none; position:fixed; top:0; left:0; width:100%; height:100%;
@@ -164,7 +164,7 @@ def _render_photo_gallery(listing: dict):
                    cursor:pointer; opacity:0.4; transition:opacity .2s; border:2px solid transparent;
                    flex-shrink:0; }}
       .lb-thumb:hover {{ opacity:0.75; }}
-      .lb-thumb.active {{ opacity:1; border-color:#fff; }}
+      .lb-thumb.active {{ opacity:1; border-color:#C9A24E; }}
     </style>
 
     <div class="gallery" id="gal">
@@ -311,14 +311,33 @@ def _render_header(listing: dict, score_data: dict):
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col1:
-        st.markdown(
-            f"<div style='text-align:center; padding:20px; background-color:{color}20; "
-            f"border-radius:12px; border: 2px solid {color};'>"
-            f"<h1 style='color:{color}; margin:0;'>{score}</h1>"
-            f"<p style='color:{color}; margin:0; font-weight:bold;'>{label}</p>"
-            f"</div>",
-            unsafe_allow_html=True,
+        # Flip Score Gauge Chart
+        fig = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=score,
+            number={"font": {"size": 52, "family": "Inter", "color": color}, "suffix": ""},
+            title={"text": label, "font": {"size": 13, "family": "Inter", "color": DESIGN["text_muted"]}},
+            gauge={
+                "axis": {"range": [0, 100], "visible": False},
+                "bar": {"color": color, "thickness": 0.7},
+                "bgcolor": DESIGN["bg_alt"],
+                "borderwidth": 0,
+                "shape": "angular",
+                "steps": [
+                    {"range": [0, 35], "color": "rgba(212,118,108,0.08)"},
+                    {"range": [35, 50], "color": "rgba(212,145,106,0.08)"},
+                    {"range": [50, 65], "color": "rgba(201,162,78,0.08)"},
+                    {"range": [65, 80], "color": "rgba(125,155,138,0.08)"},
+                    {"range": [80, 100], "color": "rgba(91,138,114,0.08)"},
+                ],
+            },
+        ))
+        fig.update_layout(
+            height=220, margin=dict(t=30, b=10, l=20, r=20),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            font={"family": "Inter, sans-serif"},
         )
+        st.plotly_chart(fig, use_container_width=True)
 
     with col2:
         # Titel + favorieten knop
@@ -978,16 +997,16 @@ def _render_market_comp_card(comp: dict, idx: int):
             )
         else:
             st.markdown(
-                '<div style="background:#e9ecef;height:160px;display:flex;'
-                'align-items:center;justify-content:center;border-radius:6px;">'
-                '<span style="color:#6c757d;font-size:0.85em;">Geen foto</span></div>',
+                '<div style="background:#EDE7E0;height:160px;display:flex;'
+                'align-items:center;justify-content:center;border-radius:12px;">'
+                '<span style="color:#B0AAA3;font-size:0.85em;">Geen foto</span></div>',
                 unsafe_allow_html=True,
             )
 
         # Prijs + prijs/m²
         st.markdown(
             f'<div style="margin:6px 0;">'
-            f'<span style="font-size:1.1em;font-weight:bold;color:#1a365d;">'
+            f'<span style="font-size:1.1em;font-weight:bold;color:#C9A24E;">'
             f'{format_eur(price)}</span>'
             f'<span style="color:#888;font-size:0.85em;margin-left:8px;">'
             f'{format_eur_per_m2(price_per_m2)}</span>'
@@ -1074,8 +1093,9 @@ def _render_maps_preview(listing: dict):
         st.markdown(
             f'<a href="{maps_url}" target="_blank" '
             f'style="display:inline-block;margin-top:8px;padding:8px 16px;'
-            f'background-color:#4285f4;color:white;border-radius:6px;'
-            f'text-decoration:none;font-size:14px;font-weight:500;">'
+            f'background:linear-gradient(135deg,#C9A24E,#B8913D);color:white;border-radius:12px;'
+            f'text-decoration:none;font-size:14px;font-weight:600;font-family:Inter,sans-serif;'
+            f'box-shadow:0 2px 6px rgba(201,162,78,0.2);">'
             f'📍 Open in Google Maps</a>',
             unsafe_allow_html=True,
         )
@@ -1139,47 +1159,81 @@ def _render_location_analysis(listing: dict, analysis: dict):
 # ============================================================
 
 def _render_pnl_table(analysis: dict):
-    """Rendert de P&L tabel met prima casa als hoofdscenario."""
+    """Rendert de P&L tabel als gestylde HTML."""
     prima = analysis.get("prima_casa", analysis.get("optimistic", {}))
     seconda = analysis.get("seconda_casa", analysis.get("conservative", {}))
 
-    st.info(
-        "**Prima casa** is het hoofdscenario: aankoop als eerste woning (2% registratiebelasting, "
-        "geen meerwaardebelasting). **Seconda casa** ter vergelijking (9% belasting, 26% plusvalenza)."
+    st.markdown(
+        '<div style="background:rgba(201,162,78,0.06);border-left:4px solid #C9A24E;'
+        'border-radius:0 12px 12px 0;padding:14px 18px;margin-bottom:16px;'
+        'font-family:Inter,sans-serif;font-size:0.88rem;color:#7A7672;line-height:1.5;">'
+        '<strong>Prima casa</strong> is het hoofdscenario: aankoop als eerste woning (2% registratiebelasting, '
+        'geen meerwaardebelasting). <strong>Seconda casa</strong> ter vergelijking (9% belasting, 26% plusvalenza).'
+        '</div>',
+        unsafe_allow_html=True,
     )
 
-    rows = [
-        ("**AANKOOPZIJDE**", "", ""),
-        ("Aankoopprijs", format_eur(prima.get("purchase_price", 0)), format_eur(seconda.get("purchase_price", 0))),
-        ("Registratiebelasting", format_eur(prima.get("registration_tax", 0)), format_eur(seconda.get("registration_tax", 0))),
-        ("Notaris + kadaster", format_eur(prima.get("notary", 0)), format_eur(seconda.get("notary", 0))),
-        ("Makelaar aankoop", format_eur(prima.get("broker_buy", 0)), format_eur(seconda.get("broker_buy", 0))),
-        ("Renovatiekosten", format_eur(prima.get("renovation", 0)), format_eur(seconda.get("renovation", 0))),
-        ("Architect + vergunningen", format_eur(prima.get("architect", 0)), format_eur(seconda.get("architect", 0))),
-        ("Onvoorzien", format_eur(prima.get("contingency", 0)), format_eur(seconda.get("contingency", 0))),
-        ("Holding costs", format_eur(prima.get("holding_costs", 0)), format_eur(seconda.get("holding_costs", 0))),
-        ("**TOTALE INVESTERING**", f"**{format_eur(prima.get('total_investment', 0))}**", f"**{format_eur(seconda.get('total_investment', 0))}**"),
-        ("---", "---", "---"),
-        ("**VERKOOPZIJDE**", "", ""),
-        ("Geschatte verkoopprijs", format_eur(prima.get("sale_price", 0)), format_eur(seconda.get("sale_price", 0))),
-        ("Verkoopprijs/m2", format_eur_per_m2(prima.get("sale_price_per_m2", 0)), format_eur_per_m2(seconda.get("sale_price_per_m2", 0))),
-        ("Makelaar verkoop", format_eur(prima.get("broker_sell", 0)), format_eur(seconda.get("broker_sell", 0))),
-        ("Plusvalenza (26%)", format_eur(prima.get("plusvalenza_tax", 0)), format_eur(seconda.get("plusvalenza_tax", 0))),
-        ("**NETTO OPBRENGST**", f"**{format_eur(prima.get('net_revenue', 0))}**", f"**{format_eur(seconda.get('net_revenue', 0))}**"),
-        ("---", "---", "---"),
-        ("**NETTO WINST**", f"**{format_eur(prima.get('net_profit', 0))}**", f"**{format_eur(seconda.get('net_profit', 0))}**"),
-        ("**ROI**", f"**{format_pct(prima.get('roi', 0))}**", f"**{format_pct(seconda.get('roi', 0))}**"),
-    ]
+    def _row(label, p_val, s_val, bold=False, section=False):
+        """Genereert een HTML tabelrij."""
+        fw = "700" if bold else "400"
+        bg = "background:#2C2520;color:#E8E0D8;" if section else ""
+        td_style = f"padding:10px 16px;font-weight:{fw};border-bottom:1px solid rgba(0,0,0,0.04);"
+        if section:
+            return (f'<tr><td colspan="3" style="{bg}padding:10px 16px;font-weight:700;'
+                    f'font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;">{label}</td></tr>')
+        color_p = ""
+        color_s = ""
+        if bold and "WINST" in label:
+            p_num = prima.get("net_profit", 0)
+            s_num = seconda.get("net_profit", 0)
+            color_p = f"color:{'#5B8A72' if p_num >= 0 else '#D4766C'};"
+            color_s = f"color:{'#5B8A72' if s_num >= 0 else '#D4766C'};"
+        return (f'<tr><td style="{td_style}">{label}</td>'
+                f'<td style="{td_style}text-align:right;{color_p}">{p_val}</td>'
+                f'<td style="{td_style}text-align:right;{color_s}">{s_val}</td></tr>')
 
-    md = "| Kostenpost | Prima Casa (2%) | Seconda Casa (9%) |\n"
-    md += "|:-----------|---------------------------:|----------------------------:|\n"
-    for label, prima_val, seconda_val in rows:
-        if label == "---":
-            md += "| | | |\n"
-        else:
-            md += f"| {label} | {prima_val} | {seconda_val} |\n"
+    rows_html = ""
+    rows_html += _row("AANKOOPZIJDE", "", "", section=True)
+    rows_html += _row("Aankoopprijs", format_eur(prima.get("purchase_price", 0)), format_eur(seconda.get("purchase_price", 0)))
+    rows_html += _row("Registratiebelasting", format_eur(prima.get("registration_tax", 0)), format_eur(seconda.get("registration_tax", 0)))
+    rows_html += _row("Notaris + kadaster", format_eur(prima.get("notary", 0)), format_eur(seconda.get("notary", 0)))
+    rows_html += _row("Makelaar aankoop", format_eur(prima.get("broker_buy", 0)), format_eur(seconda.get("broker_buy", 0)))
+    rows_html += _row("Renovatiekosten", format_eur(prima.get("renovation", 0)), format_eur(seconda.get("renovation", 0)))
+    rows_html += _row("Architect + vergunningen", format_eur(prima.get("architect", 0)), format_eur(seconda.get("architect", 0)))
+    rows_html += _row("Onvoorzien", format_eur(prima.get("contingency", 0)), format_eur(seconda.get("contingency", 0)))
+    rows_html += _row("Holding costs", format_eur(prima.get("holding_costs", 0)), format_eur(seconda.get("holding_costs", 0)))
+    rows_html += _row("Totale Investering", format_eur(prima.get("total_investment", 0)), format_eur(seconda.get("total_investment", 0)), bold=True)
+    rows_html += _row("VERKOOPZIJDE", "", "", section=True)
+    rows_html += _row("Geschatte verkoopprijs", format_eur(prima.get("sale_price", 0)), format_eur(seconda.get("sale_price", 0)))
+    rows_html += _row("Verkoopprijs/m2", format_eur_per_m2(prima.get("sale_price_per_m2", 0)), format_eur_per_m2(seconda.get("sale_price_per_m2", 0)))
+    rows_html += _row("Makelaar verkoop", format_eur(prima.get("broker_sell", 0)), format_eur(seconda.get("broker_sell", 0)))
+    rows_html += _row("Plusvalenza (26%)", format_eur(prima.get("plusvalenza_tax", 0)), format_eur(seconda.get("plusvalenza_tax", 0)))
+    rows_html += _row("Netto Opbrengst", format_eur(prima.get("net_revenue", 0)), format_eur(seconda.get("net_revenue", 0)), bold=True)
+    rows_html += _row("NETTO WINST", format_eur(prima.get("net_profit", 0)), format_eur(seconda.get("net_profit", 0)), bold=True)
+    rows_html += _row("ROI", format_pct(prima.get("roi", 0)), format_pct(seconda.get("roi", 0)), bold=True)
 
-    st.markdown(md)
+    html = f"""
+    <div style="border-radius:16px;overflow:hidden;border:1px solid rgba(0,0,0,0.04);
+                box-shadow:0 2px 12px rgba(0,0,0,0.04);font-family:Inter,sans-serif;font-size:0.9rem;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:#FAF7F4;">
+            <th style="padding:12px 16px;text-align:left;font-weight:600;font-size:0.75rem;
+                       text-transform:uppercase;letter-spacing:0.06em;color:#B0AAA3;
+                       border-bottom:1px solid rgba(0,0,0,0.06);">Kostenpost</th>
+            <th style="padding:12px 16px;text-align:right;font-weight:600;font-size:0.75rem;
+                       text-transform:uppercase;letter-spacing:0.06em;color:#B0AAA3;
+                       border-bottom:1px solid rgba(0,0,0,0.06);">Prima Casa (2%)</th>
+            <th style="padding:12px 16px;text-align:right;font-weight:600;font-size:0.75rem;
+                       text-transform:uppercase;letter-spacing:0.06em;color:#B0AAA3;
+                       border-bottom:1px solid rgba(0,0,0,0.06);">Seconda Casa (9%)</th>
+          </tr>
+        </thead>
+        <tbody>{rows_html}</tbody>
+      </table>
+    </div>
+    """
+    st.markdown(html, unsafe_allow_html=True)
 
 
 # ============================================================
@@ -1217,19 +1271,31 @@ def _render_score_radar(score_data: dict):
     keys = ["roi", "margin", "neighborhood", "risk", "liquidity", "surface"]
     values = [scores.get(k, 0) for k in keys]
 
+    dark = st.session_state.get("dark_mode", False)
     fig = go.Figure()
     fig.add_trace(go.Scatterpolar(
         r=values + [values[0]],
         theta=categories + [categories[0]],
         fill="toself",
         name="Score",
-        line_color="#1a365d",
-        fillcolor="rgba(26, 54, 93, 0.2)",
+        line_color="#C9A24E",
+        fillcolor="rgba(201, 162, 78, 0.15)",
+        marker=dict(size=6, color="#C9A24E"),
     ))
+    grid_color = "rgba(255,255,255,0.06)" if dark else "rgba(0,0,0,0.06)"
+    tick_color = DESIGN["dark_text_muted"] if dark else DESIGN["text_muted"]
     fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
+        polar=dict(
+            bgcolor="rgba(0,0,0,0)",
+            radialaxis=dict(visible=True, range=[0, 100], gridcolor=grid_color,
+                            tickfont=dict(size=9, color=tick_color)),
+            angularaxis=dict(gridcolor=grid_color,
+                             tickfont=dict(size=11, color=DESIGN["text_secondary"] if not dark else DESIGN["dark_text_secondary"],
+                                           family="Inter, sans-serif")),
+        ),
         showlegend=False, height=350,
-        margin=dict(l=40, r=40, t=40, b=40),
+        margin=dict(l=60, r=60, t=30, b=30),
+        **get_plotly_layout(dark),
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -1276,10 +1342,10 @@ def _render_speed_and_confidence(listing: dict):
             total = comparables.get("batch_total", 1)
             rank = comparables.get("batch_rank_score", 1)
             st.markdown(
-                f'<div style="text-align:center;padding:16px;background:#f8f9fa;'
-                f'border:1px solid #e9ecef;border-radius:8px;">'
-                f'<h2 style="margin:0;color:#1a365d;">#{rank}/{total}</h2>'
-                f'<p style="margin:4px 0 0;font-weight:bold;color:#555;">Rangpositie (score)</p>'
+                f'<div style="text-align:center;padding:16px;background:rgba(201,162,78,0.08);'
+                f'border:1px solid rgba(201,162,78,0.2);border-radius:12px;">'
+                f'<h2 style="margin:0;color:#C9A24E;">#{rank}/{total}</h2>'
+                f'<p style="margin:4px 0 0;font-weight:600;color:#7A7672;">Rangpositie (score)</p>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -1321,13 +1387,25 @@ def _render_comparables(listing: dict):
 
 
 def _render_risk_flags(score_data: dict):
-    """Toont risicovlaggen."""
+    """Toont risicovlaggen als gestylde kaarten."""
     risk_flags = score_data.get("risk_flags", [])
     if not risk_flags:
-        st.success("Geen risicovlaggen gevonden.")
+        st.markdown(
+            '<div style="background:rgba(91,138,114,0.08);border-left:4px solid #5B8A72;'
+            'border-radius:0 12px 12px 0;padding:14px 18px;font-family:Inter,sans-serif;'
+            'font-size:0.9rem;color:#5B8A72;line-height:1.5;">'
+            'Geen risicovlaggen gevonden.</div>',
+            unsafe_allow_html=True,
+        )
     else:
         for flag in risk_flags:
-            st.warning(flag)
+            st.markdown(
+                f'<div style="background:rgba(212,145,106,0.08);border-left:4px solid #D4916A;'
+                f'border-radius:0 12px 12px 0;padding:14px 18px;margin:8px 0;'
+                f'font-family:Inter,sans-serif;font-size:0.9rem;color:#8A6B2E;line-height:1.5;">'
+                f'{flag}</div>',
+                unsafe_allow_html=True,
+            )
 
 
 # ============================================================

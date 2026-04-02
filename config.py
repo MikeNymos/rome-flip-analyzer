@@ -4,6 +4,52 @@ Configureerbare parameters en defaults voor Rome Flip Analyzer.
 from __future__ import annotations
 
 
+# === DESIGN SYSTEM ===
+DESIGN = {
+    # Light mode
+    "bg": "#F5F0EB",
+    "bg_alt": "#EDE7E0",
+    "card_bg": "#FFFFFF",
+    "text_primary": "#1A1A1A",
+    "text_secondary": "#7A7672",
+    "text_muted": "#B0AAA3",
+    "accent": "#C9A24E",
+    "accent_light": "#E8D5A0",
+    "accent_dark": "#B8913D",
+    "border": "rgba(0,0,0,0.06)",
+    "shadow": "0 2px 12px rgba(0,0,0,0.04)",
+    "card_radius": "20px",
+    # Sidebar
+    "sidebar_top": "#2C2520",
+    "sidebar_bottom": "#1E1A17",
+    "sidebar_text": "#E8E0D8",
+    "sidebar_muted": "#8A8078",
+    # Dark mode
+    "dark_bg": "#1A1714",
+    "dark_card": "#242018",
+    "dark_border": "rgba(255,255,255,0.08)",
+    "dark_text": "#E8E0D8",
+    "dark_text_secondary": "#A09890",
+    "dark_text_muted": "#6A6258",
+    "dark_sidebar_top": "#141210",
+    "dark_sidebar_bottom": "#0E0C0A",
+    # Score colors
+    "score_excellent": "#5B8A72",
+    "score_good": "#7D9B8A",
+    "score_fair": "#C9A24E",
+    "score_poor": "#D4916A",
+    "score_bad": "#D4766C",
+    # Functional
+    "positive": "#5B8A72",
+    "negative": "#D4766C",
+    "warning": "#D4916A",
+    # Plotly
+    "plotly_colorway": [
+        "#C9A24E", "#7D9B8A", "#E8956A", "#4A6FA5",
+        "#C4A0B9", "#D4766C", "#8B7E6A", "#B0AAA3",
+    ],
+}
+
 DEFAULT_PARAMS = {
     # Renovatie
     "renovation_cost_per_m2": 2000,
@@ -72,11 +118,11 @@ PARAM_DESCRIPTIONS = {
 
 # Score interpretatie
 SCORE_LABELS = {
-    (80, 101): ("★★★★★ Uitstekend", "#2d8a4e", "Topkandidaat, direct actie ondernemen"),
-    (65, 80): ("★★★★ Goed", "#3da55d", "Interessant, nader onderzoek waard"),
-    (50, 65): ("★★★ Redelijk", "#d4a017", "Potentieel, maar let op risico's"),
-    (35, 50): ("★★ Matig", "#e07c24", "Waarschijnlijk niet winstgevend genoeg"),
-    (0, 35): ("★ Slecht", "#c0392b", "Afwijzen"),
+    (80, 101): ("Uitstekend", "#5B8A72", "Topkandidaat, direct actie ondernemen"),
+    (65, 80): ("Goed", "#7D9B8A", "Interessant, nader onderzoek waard"),
+    (50, 65): ("Redelijk", "#C9A24E", "Potentieel, maar let op risico's"),
+    (35, 50): ("Matig", "#D4916A", "Waarschijnlijk niet winstgevend genoeg"),
+    (0, 35): ("Slecht", "#D4766C", "Afwijzen"),
 }
 
 def get_score_label(score: int) -> tuple[str, str, str]:

@@ -180,9 +180,10 @@ def render_auth_page():
                 st.rerun()
 
         st.markdown(
-            "<h1 style='text-align: center; color: #1a365d;'>Rome Flip Analyzer</h1>"
-            "<p style='text-align: center; color: #c9a026; font-size: 1.1em; "
-            "margin-bottom: 2em;'>Vastgoed Investeringsanalyse</p>",
+            "<h1 style='text-align: center; color: #1A1A1A; font-family: Inter, sans-serif; "
+            "font-weight: 700; letter-spacing: -0.02em;'>Rome Flip Analyzer</h1>"
+            "<p style='text-align: center; color: #C9A24E; font-size: 1.1em; "
+            "font-family: Inter, sans-serif; margin-bottom: 2em;'>Vastgoed Investeringsanalyse</p>",
             unsafe_allow_html=True,
         )
 
