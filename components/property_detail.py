@@ -111,7 +111,7 @@ def _render_photo_gallery(listing: dict):
     <style>
       * {{ margin:0; padding:0; box-sizing:border-box; }}
       .gallery {{ position:relative; width:100%; background:#111; border-radius:8px; overflow:hidden; }}
-      .main-img {{ width:100%; height:480px; object-fit:contain; display:block; }}
+      .main-img {{ width:100%; height:480px; object-fit:contain; display:block; cursor:pointer; }}
       .arrow {{ position:absolute; top:50%; transform:translateY(-50%); width:48px; height:48px;
                 background:rgba(0,0,0,0.45); border:none; color:#fff; font-size:28px;
                 cursor:pointer; border-radius:50%; opacity:0; transition:opacity .2s; z-index:2; }}
@@ -121,6 +121,10 @@ def _render_photo_gallery(listing: dict):
       .arrow-r {{ right:12px; }}
       .counter {{ position:absolute; bottom:12px; right:12px; background:rgba(0,0,0,0.6);
                   color:#fff; padding:4px 12px; border-radius:16px; font-size:13px; z-index:2; }}
+      .zoom-hint {{ position:absolute; bottom:12px; left:12px; background:rgba(0,0,0,0.6);
+                    color:#fff; padding:4px 12px; border-radius:16px; font-size:12px; z-index:2;
+                    opacity:0; transition:opacity .2s; pointer-events:none; }}
+      .gallery:hover .zoom-hint {{ opacity:0.7; }}
       .thumbs {{ display:flex; gap:6px; overflow-x:auto; padding:8px 0; scrollbar-width:thin; }}
       .thumbs::-webkit-scrollbar {{ height:6px; }}
       .thumbs::-webkit-scrollbar-thumb {{ background:#ccc; border-radius:3px; }}
@@ -128,18 +132,64 @@ def _render_photo_gallery(listing: dict):
                 cursor:pointer; opacity:0.5; transition:opacity .2s; border:2px solid transparent; }}
       .thumb:hover {{ opacity:0.85; }}
       .thumb.active {{ opacity:1; border-color:#1a365d; }}
+
+      /* Lightbox overlay */
+      .lightbox {{ display:none; position:fixed; top:0; left:0; width:100vw; height:100vh;
+                   background:rgba(0,0,0,0.92); z-index:9999; align-items:center;
+                   justify-content:center; flex-direction:column; }}
+      .lightbox.open {{ display:flex; }}
+      .lightbox-img {{ max-width:92vw; max-height:82vh; object-fit:contain;
+                       border-radius:4px; user-select:none; }}
+      .lightbox-close {{ position:absolute; top:16px; right:24px; background:none;
+                         border:none; color:#fff; font-size:36px; cursor:pointer;
+                         width:48px; height:48px; display:flex; align-items:center;
+                         justify-content:center; border-radius:50%; transition:background .2s; z-index:10001; }}
+      .lightbox-close:hover {{ background:rgba(255,255,255,0.15); }}
+      .lb-arrow {{ position:absolute; top:50%; transform:translateY(-50%); width:56px; height:56px;
+                   background:rgba(255,255,255,0.1); border:none; color:#fff; font-size:32px;
+                   cursor:pointer; border-radius:50%; transition:background .2s; z-index:10001; }}
+      .lb-arrow:hover {{ background:rgba(255,255,255,0.25); }}
+      .lb-arrow-l {{ left:20px; }}
+      .lb-arrow-r {{ right:20px; }}
+      .lb-counter {{ position:absolute; bottom:20px; color:#fff; font-size:14px;
+                     background:rgba(0,0,0,0.5); padding:6px 16px; border-radius:20px; }}
+      .lb-thumbs {{ position:absolute; bottom:56px; display:flex; gap:6px; max-width:90vw;
+                    overflow-x:auto; padding:6px; scrollbar-width:thin; }}
+      .lb-thumbs::-webkit-scrollbar {{ height:4px; }}
+      .lb-thumbs::-webkit-scrollbar-thumb {{ background:rgba(255,255,255,0.3); border-radius:2px; }}
+      .lb-thumb {{ width:64px; height:44px; object-fit:cover; border-radius:3px;
+                   cursor:pointer; opacity:0.4; transition:opacity .2s; border:2px solid transparent;
+                   flex-shrink:0; }}
+      .lb-thumb:hover {{ opacity:0.75; }}
+      .lb-thumb.active {{ opacity:1; border-color:#fff; }}
     </style>
+
     <div class="gallery" id="gal">
-      <img class="main-img" id="main" src="{imgs[0]}">
+      <img class="main-img" id="main" src="{imgs[0]}" onclick="openLightbox()">
       <button class="arrow arrow-l" onclick="nav(-1)">&lsaquo;</button>
       <button class="arrow arrow-r" onclick="nav(1)">&rsaquo;</button>
       <span class="counter" id="ctr">1 / {total}</span>
+      <span class="zoom-hint">🔍 Klik om te vergroten</span>
     </div>
     <div class="thumbs" id="thumbs"></div>
+
+    <!-- Lightbox overlay -->
+    <div class="lightbox" id="lightbox" onclick="closeLightboxBg(event)">
+      <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+      <button class="lb-arrow lb-arrow-l" onclick="lbNav(-1)">&lsaquo;</button>
+      <img class="lightbox-img" id="lb-img" src="">
+      <button class="lb-arrow lb-arrow-r" onclick="lbNav(1)">&rsaquo;</button>
+      <div class="lb-thumbs" id="lb-thumbs"></div>
+      <span class="lb-counter" id="lb-ctr"></span>
+    </div>
+
     <script>
       var imgs = {imgs_json};
       var total = {total};
       var cur = 0;
+      var lbOpen = false;
+
+      /* ---- Thumbnail strip (gallery) ---- */
       var thumbsEl = document.getElementById('thumbs');
       imgs.forEach(function(src, i) {{
         var t = document.createElement('img');
@@ -148,9 +198,19 @@ def _render_photo_gallery(listing: dict):
         t.onclick = function() {{ goTo(i); }};
         thumbsEl.appendChild(t);
       }});
-      function nav(dir) {{
-        goTo((cur + dir + imgs.length) % imgs.length);
-      }}
+
+      /* ---- Lightbox thumbnail strip ---- */
+      var lbThumbsEl = document.getElementById('lb-thumbs');
+      imgs.forEach(function(src, i) {{
+        var t = document.createElement('img');
+        t.src = src;
+        t.className = 'lb-thumb' + (i === 0 ? ' active' : '');
+        t.onclick = function(e) {{ e.stopPropagation(); lbGoTo(i); }};
+        lbThumbsEl.appendChild(t);
+      }});
+
+      /* ---- Gallery navigation ---- */
+      function nav(dir) {{ goTo((cur + dir + imgs.length) % imgs.length); }}
       function goTo(i) {{
         cur = i;
         document.getElementById('main').src = imgs[cur];
@@ -159,10 +219,54 @@ def _render_photo_gallery(listing: dict):
         ts.forEach(function(t, j) {{ t.className = 'thumb' + (j===cur?' active':''); }});
         ts[cur].scrollIntoView({{ behavior:'smooth', inline:'center', block:'nearest' }});
       }}
+
+      /* ---- Lightbox ---- */
+      function openLightbox() {{
+        lbOpen = true;
+        var lb = document.getElementById('lightbox');
+        lb.classList.add('open');
+        lbGoTo(cur);
+      }}
+      function closeLightbox() {{
+        lbOpen = false;
+        document.getElementById('lightbox').classList.remove('open');
+      }}
+      function closeLightboxBg(e) {{
+        if (e.target === document.getElementById('lightbox')) closeLightbox();
+      }}
+      function lbNav(dir) {{ lbGoTo((cur + dir + imgs.length) % imgs.length); }}
+      function lbGoTo(i) {{
+        cur = i;
+        document.getElementById('lb-img').src = imgs[cur];
+        document.getElementById('lb-ctr').textContent = (cur+1) + ' / ' + total;
+        /* sync gallery */
+        document.getElementById('main').src = imgs[cur];
+        document.getElementById('ctr').textContent = (cur+1) + ' / ' + total;
+        var ts = thumbsEl.querySelectorAll('.thumb');
+        ts.forEach(function(t, j) {{ t.className = 'thumb' + (j===cur?' active':''); }});
+        /* lightbox thumbs */
+        var lts = lbThumbsEl.querySelectorAll('.lb-thumb');
+        lts.forEach(function(t, j) {{ t.className = 'lb-thumb' + (j===cur?' active':''); }});
+        lts[cur].scrollIntoView({{ behavior:'smooth', inline:'center', block:'nearest' }});
+      }}
+
+      /* ---- Keyboard navigation ---- */
       document.addEventListener('keydown', function(e) {{
-        if (e.key === 'ArrowLeft') nav(-1);
-        if (e.key === 'ArrowRight') nav(1);
+        if (e.key === 'Escape' && lbOpen) {{ closeLightbox(); return; }}
+        if (e.key === 'ArrowLeft') {{ if (lbOpen) lbNav(-1); else nav(-1); }}
+        if (e.key === 'ArrowRight') {{ if (lbOpen) lbNav(1); else nav(1); }}
       }});
+
+      /* ---- Touch swipe support for lightbox ---- */
+      var touchStartX = 0;
+      var lbEl = document.getElementById('lightbox');
+      lbEl.addEventListener('touchstart', function(e) {{
+        touchStartX = e.changedTouches[0].screenX;
+      }}, {{ passive: true }});
+      lbEl.addEventListener('touchend', function(e) {{
+        var dx = e.changedTouches[0].screenX - touchStartX;
+        if (Math.abs(dx) > 50) {{ lbNav(dx < 0 ? 1 : -1); }}
+      }}, {{ passive: true }});
     </script>
     """
     components.html(html, height=590)
