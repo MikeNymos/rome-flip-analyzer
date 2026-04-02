@@ -39,13 +39,37 @@ _HEADERS = {
 }
 
 
-def _get(url: str, timeout: int = 20, **kwargs) -> requests.Response:
+def _get(url: str, timeout: int = 20, proxy_api_key: str = "", **kwargs) -> requests.Response:
     """
-    HTTP GET met cloudscraper (anti-bot bypass) als primaire client.
-    Valt terug op requests als cloudscraper niet beschikbaar is.
+    HTTP GET met meerdere fallbacks:
+    1. Apify proxy (residentiële IPs, niet geblokkeerd) — als API key beschikbaar
+    2. cloudscraper (Cloudflare bypass)
+    3. requests (standaard)
     """
+    # Poging 1: Apify proxy (meest betrouwbaar voor geblokkeerde sites)
+    if proxy_api_key:
+        try:
+            proxies = {
+                "http": f"http://auto:{proxy_api_key}@proxy.apify.com:8000",
+                "https": f"http://auto:{proxy_api_key}@proxy.apify.com:8000",
+            }
+            resp = requests.get(url, headers=_HEADERS, proxies=proxies,
+                                timeout=timeout, verify=True, **kwargs)
+            if resp.status_code != 403:
+                return resp
+        except requests.RequestException:
+            pass
+
+    # Poging 2: cloudscraper
     if _scraper:
-        return _scraper.get(url, timeout=timeout, **kwargs)
+        try:
+            resp = _scraper.get(url, timeout=timeout, **kwargs)
+            if resp.status_code != 403:
+                return resp
+        except requests.RequestException:
+            pass
+
+    # Poging 3: plain requests
     return requests.get(url, headers=_HEADERS, timeout=timeout, **kwargs)
 
 
@@ -72,31 +96,27 @@ def run_immobiliare_scraper(
         if not listing_id:
             raise ValueError(f"Kon geen listing ID extraheren uit de URL: {url[:80]}")
 
-        # PRIMARY METHOD: Use search API with listing ID filter.
-        # This works because search pages are NOT blocked (same as Zoek-URL tab).
-        result = _fetch_single_via_search(listing_id)
+        # Probeer de listing op te halen met Apify proxy als primaire methode
+        result = _scrape_single_listing_direct(clean_url, proxy_api_key=api_key)
         if result:
             return [result]
 
-        # Fallback 1: direct HTML scraping of listing page
-        result = _scrape_single_listing_direct(clean_url)
-        if result:
-            return [result]
-
-        # Fallback 2: Immobiliare.it internal API
-        result = _fetch_single_listing_api(clean_url)
-        if result:
-            return [result]
-
-        # Fallback 3: Apify actor
+        # Fallback: Apify actor (gebruikt Apify's eigen infra)
         if api_key:
-            return _run_actor(api_key, SEARCH_ACTOR_ID, {
-                "startUrl": clean_url,
-                "max_pages": 1,
-                "results_wanted": 1,
-            })
+            try:
+                actor_results = _run_actor(api_key, SEARCH_ACTOR_ID, {
+                    "startUrl": clean_url,
+                    "max_pages": 1,
+                    "results_wanted": 1,
+                })
+                if actor_results:
+                    return actor_results
+            except Exception:
+                pass
+
         raise Exception(
-            "Kon pand niet ophalen. Probeer het later opnieuw."
+            "Kon pand niet ophalen. Immobiliare.it blokkeert de server. "
+            "Tip: gebruik de Zoek-URL tab met een zoek-URL die dit pand bevat."
         )
 
 
@@ -275,18 +295,15 @@ def _fetch_single_listing_api(url: str) -> dict | None:
     return _convert_next_data_to_flat(real_estate)
 
 
-def _scrape_single_listing_direct(url: str) -> dict | None:
+def _scrape_single_listing_direct(url: str, proxy_api_key: str = "") -> dict | None:
     """
     Directly scrape a single Immobiliare.it listing page by extracting
-    the embedded __NEXT_DATA__ JSON. No Apify needed.
+    the embedded __NEXT_DATA__ JSON.
 
-    The listing detail page has a different __NEXT_DATA__ structure than
-    search results: the listing data is in
-    props.pageProps.dehydratedState.queries[N].state.data
-    where the data contains the full listing object.
+    Uses Apify proxy (residential IPs) if api_key provided to bypass 403 blocks.
     """
     try:
-        resp = _get(url, timeout=20)
+        resp = _get(url, timeout=20, proxy_api_key=proxy_api_key)
         resp.raise_for_status()
     except requests.RequestException as e:
         st.warning(f"Fout bij ophalen pand: {e}")
