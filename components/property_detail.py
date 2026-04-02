@@ -37,6 +37,9 @@ def render_property_detail(listing: dict, analysis: dict, score_data: dict, para
         analysis = calculate_investment_analysis(listing, params, overrides)
         score_data = calculate_flip_score(listing, analysis, params)
 
+    # === 2b. INVESTERINGSANALYSE NARRATIEF ===
+    _render_investment_narrative(listing, analysis, score_data, params)
+
     st.divider()
 
     # === 3. VERKOOPPRIJSONDERBOUWING ===
@@ -371,6 +374,284 @@ def _render_header(listing: dict, score_data: dict):
         st.metric("Vraagprijs", format_eur(listing["price"]))
         st.metric("Oppervlakte", format_m2(listing["surface_m2"]))
         st.metric("Prijs/m2", format_eur_per_m2(listing["price_per_m2"]))
+
+
+# ============================================================
+# INVESTERINGSANALYSE NARRATIEF
+# ============================================================
+
+def _render_investment_narrative(listing: dict, analysis: dict, score_data: dict, params: dict):
+    """
+    Genereert een uitgebreide investeringsanalyse in lopende tekst.
+    Behandelt rendabiliteit, sterktes, zwaktes, prijscontext en eindoordeel.
+    """
+    score = score_data["flip_score"]
+    label, color, _ = get_score_label(score)
+    comp = score_data["component_scores"]
+    risk_flags = score_data.get("risk_flags", [])
+
+    prima = analysis.get("prima_casa", analysis.get("optimistic", {}))
+    seconda = analysis.get("seconda_casa", analysis.get("conservative", {}))
+    midpoint_roi = analysis.get("midpoint_roi", 0)
+    neighborhood_data = analysis.get("neighborhood_data", {})
+    sale_estimate = analysis.get("sale_price_estimate", {})
+    final_prices = sale_estimate.get("final_price_per_m2", {})
+    location_quality = analysis.get("location_quality", {})
+
+    price = listing["price"]
+    surface = listing["surface_m2"]
+    price_m2 = listing["price_per_m2"]
+    zone = neighborhood_data.get("matched_zone", listing.get("zone", "Onbekend"))
+    condition = listing.get("condition", "")
+
+    sale_mid = final_prices.get("mid", 0)
+    sale_low = final_prices.get("low", 0)
+    sale_high = final_prices.get("high", 0)
+    reno_low = neighborhood_data.get("renovated_price_low", 0)
+    reno_high = neighborhood_data.get("renovated_price_high", 0)
+    unreno_high = neighborhood_data.get("unrenovated_price_high", 0)
+    reno_cost = params.get("renovation_cost_min_per_m2", 2000)
+
+    prima_profit = prima.get("net_profit", 0)
+    prima_roi = prima.get("roi", 0)
+    seconda_profit = seconda.get("net_profit", 0)
+    seconda_roi = seconda.get("roi", 0)
+    total_inv = prima.get("total_investment", 0)
+
+    # Break-even prijs/m2
+    broker_sell = prima.get("broker_sell", 0)
+    break_even_total = total_inv + broker_sell
+    break_even_m2 = break_even_total / surface if surface else 0
+
+    # Spread
+    spread_pct = ((sale_mid - price_m2) / price_m2 * 100) if price_m2 > 0 else 0
+
+    # Selling time
+    selling_months = neighborhood_data.get("avg_selling_time_months", 5)
+    yoy = neighborhood_data.get("yoy_growth", 0) * 100
+
+    # --- BUILD NARRATIVE ---
+    parts = []
+
+    # ── 1. EINDOORDEEL ──
+    if score >= 80:
+        verdict = (
+            f"Dit pand scoort **{score}/100 ({label})** en is een **uitstekende flipkandidaat**. "
+            f"Zowel het rendement als de marktcondities zijn gunstig."
+        )
+    elif score >= 65:
+        verdict = (
+            f"Dit pand scoort **{score}/100 ({label})** en is een **goede investering** "
+            f"mits goed onderhandeld wordt op de aankoopprijs en de renovatie binnen budget blijft."
+        )
+    elif score >= 50:
+        verdict = (
+            f"Dit pand scoort **{score}/100 ({label})**. Het heeft **potentieel**, "
+            f"maar er zijn belangrijke aandachtspunten die de winstgevendheid kunnen drukken."
+        )
+    elif score >= 35:
+        verdict = (
+            f"Dit pand scoort **{score}/100 ({label})**. Het is **waarschijnlijk niet rendabel genoeg** "
+            f"voor een flip tenzij er significant onderhandeld kan worden of kosten lager uitvallen."
+        )
+    else:
+        verdict = (
+            f"Dit pand scoort **{score}/100 ({label})**. Op basis van de huidige parameters "
+            f"is dit **geen aanbevolen investering** — het risico-rendement profiel is onvoldoende."
+        )
+    parts.append(verdict)
+
+    # ── 2. RENDABILITEIT ──
+    if prima_profit > 0:
+        profit_text = (
+            f"Bij aankoop als prima casa (met {params.get('asking_price_discount', 0.03)*100:.0f}% onderhandelingskorting) "
+            f"is de verwachte nettowinst **{format_eur(prima_profit)}** op een totale investering van "
+            f"{format_eur(total_inv)}, goed voor een ROI van **{prima_roi:.1f}%**. "
+        )
+        if seconda_profit > 0:
+            profit_text += (
+                f"Als seconda casa (volle vraagprijs, 9% registratiebelasting, 26% plusvalenza) "
+                f"daalt dit naar {format_eur(seconda_profit)} ({seconda_roi:.1f}% ROI). "
+            )
+        else:
+            profit_text += (
+                f"Let op: als seconda casa is dit pand **verlieslatend** ({format_eur(seconda_profit)}). "
+                f"Prima casa aankoop is hier essentieel voor winstgevendheid. "
+            )
+    else:
+        profit_text = (
+            f"Met de huidige parameters is dit pand **verlieslatend**: "
+            f"nettowinst prima casa {format_eur(prima_profit)}, seconda casa {format_eur(seconda_profit)}. "
+            f"De totale investering van {format_eur(total_inv)} wordt niet terugverdiend bij de geschatte verkoopprijs. "
+        )
+    parts.append(profit_text)
+
+    # ── 3. PRIJS/M² CONTEXT ──
+    price_context = f"De aankoopprijs van **{format_eur_per_m2(price_m2)}** "
+
+    if unreno_high and price_m2 < unreno_high * 0.85:
+        price_context += (
+            f"ligt **ruim onder** het wijkgemiddelde voor ongerenoveerde panden ({format_eur_per_m2(unreno_high)}), "
+            f"wat wijst op potentieel. "
+        )
+    elif unreno_high and price_m2 < unreno_high:
+        price_context += (
+            f"ligt **onder** het wijkgemiddelde voor ongerenoveerde panden ({format_eur_per_m2(unreno_high)}). "
+        )
+    elif unreno_high:
+        price_context += (
+            f"ligt **boven** het wijkgemiddelde voor ongerenoveerde panden ({format_eur_per_m2(unreno_high)}), "
+            f"wat de marge onder druk zet. Je betaalt hier al een premium bij aankoop. "
+        )
+    else:
+        price_context += "is de basis voor de berekening. "
+
+    # Spread analyse
+    price_context += (
+        f"De bruto spread naar gerenoveerde verkoopwaarde ({format_eur_per_m2(sale_mid)}) is **{spread_pct:.0f}%**. "
+    )
+
+    # Crucial insight: low price/m2 doesn't always mean high potential
+    if price_m2 < 3000 and spread_pct > 50:
+        price_context += (
+            f"Hoewel de lage instapprijs een grote spread oplevert, wees alert: "
+            f"een zeer lage prijs/m² kan ook wijzen op slechte staat, ongunstige ligging binnen de wijk, "
+            f"of kenmerken die de verkoopprijs na renovatie drukken. "
+        )
+    elif price_m2 > 5000 and spread_pct < 30:
+        price_context += (
+            f"De relatief hoge instapprijs laat weinig ruimte voor waardecreatie via renovatie. "
+            f"Zelfs met een uitstekende renovatie is het verschil tot de verkoopprijs beperkt. "
+        )
+
+    # Break-even context
+    price_context += (
+        f"Om break-even te draaien moet het pand voor minimaal **{format_eur_per_m2(break_even_m2)}** per m² "
+        f"verkocht worden"
+    )
+    if break_even_m2 < reno_low:
+        price_context += f" — dit is **comfortabel onder** de wijkgemiddelden ({format_eur_per_m2(reno_low)}-{format_eur_per_m2(reno_high)}). "
+    elif break_even_m2 < sale_mid:
+        price_context += f" — dit is haalbaar maar er is **beperkte marge** voor tegenvallers. "
+    else:
+        price_context += f" — dit ligt **boven** de verwachte verkoopprijs, wat het risico op verlies vergroot. "
+
+    parts.append(price_context)
+
+    # ── 4. STERKTES ──
+    strengths = []
+    if comp.get("roi", 0) >= 60:
+        strengths.append(f"sterk verwacht rendement ({prima_roi:.1f}% ROI prima casa)")
+    if comp.get("margin", 0) >= 60:
+        strengths.append(f"ruime marge tussen aankoop- en verkoopprijs ({spread_pct:.0f}% spread)")
+    if comp.get("neighborhood", 0) >= 70:
+        loc_summary = location_quality.get("summary", f"goede locatie in {zone}")
+        strengths.append(loc_summary.lower() if loc_summary else f"sterke locatie ({zone})")
+    if comp.get("liquidity", 0) >= 60:
+        strengths.append(f"vlotte verkoopbaarheid (gem. {selling_months} maanden in {zone})")
+    if comp.get("surface", 0) >= 70:
+        strengths.append(f"ideale oppervlakte ({surface:.0f}m²) voor het luxesegment")
+    if comp.get("risk", 0) >= 80:
+        strengths.append("laag risicoprofiel")
+    if yoy > 3:
+        strengths.append(f"stijgende markt ({yoy:.1f}% jaarlijkse prijsgroei)")
+
+    if strengths:
+        strength_text = "**Sterktes:** " + "; ".join(strengths) + ". "
+        parts.append(strength_text)
+
+    # ── 5. ZWAKTES & RISICO'S ──
+    weaknesses = []
+    if comp.get("roi", 0) < 35:
+        weaknesses.append(f"onvoldoende ROI ({midpoint_roi:.1f}% midpoint)")
+    if comp.get("margin", 0) < 40:
+        weaknesses.append(f"krappe marge ({spread_pct:.0f}% spread) na renovatiekosten")
+    if comp.get("neighborhood", 0) < 50:
+        weaknesses.append(f"zwakke locatiescoring ({comp['neighborhood']}/100)")
+    if comp.get("liquidity", 0) < 40:
+        weaknesses.append(f"trage verkoop verwacht ({selling_months} mnd gemiddeld)")
+    if comp.get("surface", 0) < 50:
+        if surface < 80:
+            weaknesses.append(f"te klein ({surface:.0f}m²) voor optimale flip-marge")
+        else:
+            weaknesses.append(f"oppervlakte ({surface:.0f}m²) buiten sweet spot")
+
+    # Add relevant risk flags
+    for flag in risk_flags[:4]:  # max 4 to keep it readable
+        weaknesses.append(flag.lower() if flag[0].isupper() else flag)
+
+    if weaknesses:
+        weakness_text = "**Zwaktes en risico's:** " + "; ".join(weaknesses) + ". "
+        parts.append(weakness_text)
+
+    # ── 6. LOCATIE & MARKT ──
+    loc_factors = location_quality.get("factors", [])
+    pos_factors = [f for f in loc_factors if f.get("category") == "positief"]
+    neg_factors = [f for f in loc_factors if f.get("category") == "negatief"]
+
+    if pos_factors or neg_factors:
+        loc_text = f"**Locatie ({zone}):** "
+        if pos_factors:
+            loc_text += "Positief: " + ", ".join(f["name"] for f in pos_factors[:3]) + ". "
+        if neg_factors:
+            loc_text += "Negatief: " + ", ".join(f["name"] for f in neg_factors[:3]) + ". "
+        if yoy != 0:
+            trend = "stijgend" if yoy > 0 else "dalend"
+            loc_text += f"Prijstrend: {trend} ({yoy:+.1f}%/jaar). "
+        loc_text += f"Gemiddelde verkooptijd na renovatie: {selling_months} maanden. "
+        parts.append(loc_text)
+
+    # ── 7. CONCLUSIE / AANBEVELING ──
+    if score >= 65 and prima_profit > 0:
+        if len(risk_flags) == 0:
+            conclusion = (
+                f"**Aanbeveling:** Dit is een solide flipkandidaat. Plan een bezichtiging en "
+                f"laat een geometra de staat beoordelen. Onderhandel richting {format_eur(price * 0.90)}-{format_eur(price * 0.95)} "
+                f"voor extra veiligheidsmarge."
+            )
+        else:
+            conclusion = (
+                f"**Aanbeveling:** Interessant pand, maar laat een geometra de {len(risk_flags)} "
+                f"risicopunt{'en' if len(risk_flags) > 1 else ''} eerst onderzoeken. "
+                f"Pas je bod aan op basis van eventuele extra kosten."
+            )
+    elif score >= 50 and prima_profit > 0:
+        conclusion = (
+            f"**Aanbeveling:** Alleen interessant bij een scherpe aankoop. "
+            f"Probeer minstens {format_eur(price * 0.90)} of lager te bieden. "
+            f"De marge is krap — onvoorziene kosten kunnen de winst snel elimineren."
+        )
+    elif prima_profit > 0:
+        conclusion = (
+            f"**Aanbeveling:** De winst is te mager ({format_eur(prima_profit)} prima casa) "
+            f"voor het risico. Alleen overwegen als je significant kunt onderhandelen op de prijs "
+            f"of als renovatiekosten lager uitvallen dan {format_eur_per_m2(reno_cost)}/m²."
+        )
+    else:
+        conclusion = (
+            f"**Aanbeveling:** Met de huidige parameters is dit pand **niet rendabel**. "
+            f"De verkoopprijs na renovatie ({format_eur_per_m2(sale_mid)}/m²) dekt de totale kosten niet. "
+            f"Overweeg alleen als de aankoopprijs significant daalt of je goedkoper kunt renoveren."
+        )
+    parts.append(conclusion)
+
+    # --- RENDER ---
+    st.subheader("Investeringsanalyse")
+    narrative = "\n\n".join(parts)
+    st.markdown(
+        f'<div style="background-color:{color}08; border-left:4px solid {color}; '
+        f'padding:20px 24px; border-radius:0 8px 8px 0; line-height:1.7; font-size:0.95em;">'
+        f'{_md_to_html(narrative)}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def _md_to_html(md_text: str) -> str:
+    """Simpele Markdown → HTML conversie voor bold en line breaks."""
+    import re
+    html = md_text.replace("\n\n", "<br><br>")
+    html = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', html)
+    return html
 
 
 # ============================================================
