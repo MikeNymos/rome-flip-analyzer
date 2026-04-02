@@ -238,6 +238,10 @@ def estimate_sale_price(
         },
         "neighborhood_name": zone_name,
         "neighborhood_notes": neighborhood_data.get("notes", ""),
+        "data_period": neighborhood_data.get("data_period", ""),
+        "sources": neighborhood_data.get("sources", []),
+        "comparable_search_url": neighborhood_data.get("comparable_search_url", ""),
+        "recent_transactions": neighborhood_data.get("recent_transactions", []),
     }
 
 

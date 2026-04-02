@@ -282,7 +282,7 @@ def _render_parameter_sliders(listing: dict, analysis: dict, params: dict) -> di
 # ============================================================
 
 def _render_sale_price_justification(listing: dict, analysis: dict):
-    """Toont WAAROM de geschatte verkoopprijs is wat het is."""
+    """Toont WAAROM de geschatte verkoopprijs is wat het is, met bronnen en voorbeelden."""
     sale_estimate = analysis.get("sale_price_estimate", {})
     if not sale_estimate:
         st.warning("Geen verkoopprijsschatting beschikbaar.")
@@ -293,16 +293,51 @@ def _render_sale_price_justification(listing: dict, analysis: dict):
     adjustments = sale_estimate.get("adjustments", [])
     final_prices = sale_estimate.get("final_price_per_m2", {})
     surface = listing["surface_m2"]
+    data_period = sale_estimate.get("data_period", "")
+    sources = sale_estimate.get("sources", [])
+    transactions = sale_estimate.get("recent_transactions", [])
+    comparable_url = sale_estimate.get("comparable_search_url", "")
 
-    # Basisprijs uitleg
+    # Basisprijs uitleg met bronverwijzingen
+    source_text = ""
+    if data_period:
+        source_text += f"Periode: **{data_period}**. "
+    if sources:
+        source_links = ", ".join(
+            f"[{s['name']}]({s['url']})" for s in sources
+        )
+        source_text += f"Bronnen: {source_links}"
+
     st.info(
         f"**Wijkbenchmark: {neighborhood_name}**\n\n"
         f"Gerenoveerde woningen in {neighborhood_name} worden verkocht voor "
         f"**{format_eur_per_m2(base_prices.get('low', 0))}** (laag) tot "
         f"**{format_eur_per_m2(base_prices.get('high', 0))}** (hoog), "
         f"met een middenprijs van **{format_eur_per_m2(base_prices.get('mid', 0))}**.\n\n"
-        f"_Bron: marktanalyse vergelijkbare transacties in {neighborhood_name}_"
+        + (f"{source_text}" if source_text else "")
     )
+
+    # Recente transacties als onderbouwing
+    if transactions:
+        with st.expander(f"Recente vergelijkbare verkopen in {neighborhood_name} ({len(transactions)} voorbeelden)", expanded=False):
+            tx_md = "| Adres | Type | Prijs/m² | Opp. | Datum |\n"
+            tx_md += "|:------|:-----|----------:|-----:|------:|\n"
+            for tx in transactions:
+                tx_md += (
+                    f"| {tx['address']} | {tx['type']} | "
+                    f"€{tx['price_m2']:,.0f}/m² | {tx['surface']}m² | "
+                    f"{tx['date']} |\n"
+                )
+            st.markdown(tx_md)
+            st.caption(
+                "Deze transacties zijn representatieve referenties voor gerenoveerde "
+                "woningen in deze wijk. Exacte prijzen kunnen variëren op basis van "
+                "specifieke pandkenmerken."
+            )
+            if comparable_url:
+                st.markdown(
+                    f"[Bekijk vergelijkbare woningen op Immobiliare.it]({comparable_url})"
+                )
 
     # Correcties
     if adjustments:

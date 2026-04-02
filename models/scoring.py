@@ -120,11 +120,27 @@ def calculate_flip_score(listing: dict, analysis: dict, params: dict) -> dict:
     address = features.get("address") or listing.get("address", "")
     is_prem = is_premium_street(zone_name, address)
 
+    # Bouw gedetailleerde locatie-uitleg met specifieke factoren
+    loc_factors = location_quality.get("factors", []) if location_quality else []
+    pos_factors = [f for f in loc_factors if f.get("category") == "positief"]
+    neg_factors = [f for f in loc_factors if f.get("category") == "negatief"]
+
+    pos_detail = ""
+    if pos_factors:
+        pos_items = "; ".join(f"{f['name']} (+{f['impact']})" for f in pos_factors)
+        pos_detail = f"**Positief:** {pos_items}. "
+
+    neg_detail = ""
+    if neg_factors:
+        neg_items = "; ".join(f"{f['name']} ({f['impact']})" for f in neg_factors)
+        neg_detail = f"**Negatief:** {neg_items}. "
+
     explanations["neighborhood"] = (
-        f"{zone_name} is een prioriteit-{priority} wijk met hoge vraag onder kopers. "
+        f"{zone_name} is een prioriteit-{priority} wijk. "
         f"Jaarlijkse prijsgroei: {yoy:.1f}%. Gemiddelde verkooptijd: {selling_t} maanden. "
         + (f"PREMIUM STRAAT gedetecteerd — bovengemiddelde vraag en prijs verwacht. " if is_prem else "")
-        + f"Sterk verhuurd- en doorverkooppotentieel. "
+        + pos_detail
+        + neg_detail
         + (location_quality.get("summary", "") if location_quality else "")
     )
 

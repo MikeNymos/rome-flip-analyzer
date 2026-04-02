@@ -285,18 +285,37 @@ def assess_location_quality(listing: dict, neighborhood_data: dict) -> dict:
     # --- Clamp score ---
     score = max(0, min(100, score))
 
-    # --- Samenvatting ---
-    pos_count = sum(1 for f in factors if f["category"] == "positief")
-    neg_count = sum(1 for f in factors if f["category"] == "negatief")
+    # --- Samenvatting met specifieke factoren ---
+    pos_factors = [f for f in factors if f["category"] == "positief"]
+    neg_factors = [f for f in factors if f["category"] == "negatief"]
+    pos_count = len(pos_factors)
+    neg_count = len(neg_factors)
+
+    pos_names = ", ".join(f["name"] for f in pos_factors)
+    neg_names = ", ".join(f["name"] for f in neg_factors)
 
     if score >= 75:
-        summary = f"Uitstekende locatie met {pos_count} positieve factoren. Sterk flip-potentieel."
+        summary = (
+            f"Uitstekende locatie ({pos_count} positieve factoren: {pos_names}). "
+            f"Sterk flip-potentieel."
+        )
     elif score >= 60:
-        summary = f"Goede locatie met {pos_count} positieve en {neg_count} negatieve factoren."
+        summary = (
+            f"Goede locatie ({pos_count} positief: {pos_names}"
+            + (f"; {neg_count} negatief: {neg_names}" if neg_count else "")
+            + ")."
+        )
     elif score >= 40:
-        summary = f"Gemiddelde locatie. Let op {neg_count} risicofactor(en)."
+        summary = (
+            f"Gemiddelde locatie. "
+            + (f"Positief: {pos_names}. " if pos_count else "")
+            + (f"Let op: {neg_names}." if neg_count else "")
+        )
     else:
-        summary = f"Zwakke locatie met {neg_count} negatieve factoren. Hoog risico voor flip."
+        summary = (
+            f"Zwakke locatie ({neg_count} negatieve factoren: {neg_names}). "
+            f"Hoog risico voor flip."
+        )
 
     return {
         "overall_score": score,
