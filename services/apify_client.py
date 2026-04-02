@@ -3,6 +3,7 @@ Immobiliare.it scraping module.
 
 Primary method: Direct HTML scraping of Immobiliare.it search pages.
 Extracts listing data from embedded __NEXT_DATA__ JSON (server-side rendered).
+Uses cloudscraper to bypass Cloudflare/anti-bot protection (403 errors).
 Fallback: Apify actor for individual listing URLs.
 """
 from __future__ import annotations
@@ -13,6 +14,15 @@ import time
 import requests
 import streamlit as st
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+
+# cloudscraper omzeilt Cloudflare anti-bot (TLS fingerprinting, JS challenges)
+try:
+    import cloudscraper
+    _scraper = cloudscraper.create_scraper(
+        browser={"browser": "chrome", "platform": "darwin", "mobile": False}
+    )
+except ImportError:
+    _scraper = None
 
 APIFY_BASE_URL = "https://api.apify.com/v2"
 SEARCH_ACTOR_ID = "shahidirfan~immobiliare-it-scraper"
@@ -26,12 +36,17 @@ _HEADERS = {
     "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7",
     "Accept-Encoding": "gzip, deflate, br",
     "Cache-Control": "no-cache",
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "none",
-    "Sec-Fetch-User": "?1",
-    "Upgrade-Insecure-Requests": "1",
 }
+
+
+def _get(url: str, timeout: int = 20, **kwargs) -> requests.Response:
+    """
+    HTTP GET met cloudscraper (anti-bot bypass) als primaire client.
+    Valt terug op requests als cloudscraper niet beschikbaar is.
+    """
+    if _scraper:
+        return _scraper.get(url, timeout=timeout, **kwargs)
+    return requests.get(url, headers=_HEADERS, timeout=timeout, **kwargs)
 
 
 def run_immobiliare_scraper(
@@ -176,14 +191,10 @@ def _fetch_single_via_search(listing_id: str) -> dict | None:
     teruggeeft via de ?idAnnuncio= parameter of door de zoekresultaten te
     filteren op listing ID.
     """
-    # Methode 1: Zoek via de listing-detail JSON endpoint (niet HTML)
+    # Methode 1: Zoek via de listing-detail JSON endpoint
     try:
         detail_api = f"https://www.immobiliare.it/api-next/search-list/real-estates/{listing_id}"
-        resp = requests.get(detail_api, headers={
-            **_HEADERS,
-            "Accept": "application/json",
-            "Referer": f"https://www.immobiliare.it/annunci/{listing_id}/",
-        }, timeout=15)
+        resp = _get(detail_api, timeout=15)
         if resp.status_code == 200:
             data = resp.json()
             real_estate = data if "properties" in data else data.get("realEstate", data)
@@ -194,23 +205,10 @@ def _fetch_single_via_search(listing_id: str) -> dict | None:
     except (requests.RequestException, json.JSONDecodeError, KeyError):
         pass
 
-    # Methode 2: Zoek via een brede zoek-URL en filter op listing ID
-    # Dit werkt omdat zoekpagina's NIET geblokkeerd worden
-    search_url = f"https://www.immobiliare.it/vendita-case/roma/?criterio=rilevanza"
+    # Methode 2: Direct de listing-pagina ophalen via cloudscraper
     try:
-        page_data = _fetch_search_page(search_url, page=1)
-        # Als de zoekpagina werkt, probeer de listing te vinden via
-        # een specifiekere zoekopdracht
-        if page_data:
-            # De zoekpagina werkt → probeer nu de listing detail
-            # via dezelfde sessie/cookies
-            session = requests.Session()
-            session.headers.update(_HEADERS)
-            # Warm up met een zoekpagina (zet cookies)
-            session.get(search_url, timeout=15)
-            # Probeer daarna de listing detail
-            detail_url = f"https://www.immobiliare.it/annunci/{listing_id}/"
-            resp = session.get(detail_url, timeout=20)
+        detail_url = f"https://www.immobiliare.it/annunci/{listing_id}/"
+        resp = _get(detail_url, timeout=20)
             if resp.status_code == 200:
                 match = re.search(
                     r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>',
@@ -260,11 +258,10 @@ def _fetch_single_listing_api(url: str) -> dict | None:
     }
 
     try:
-        resp = requests.get(api_url, headers=api_headers, timeout=15)
+        resp = _get(api_url, timeout=15)
         if resp.status_code == 403:
-            # Try alternative API endpoint
             api_url_alt = f"https://www.immobiliare.it/api-next/search-list/detail/{listing_id}/"
-            resp = requests.get(api_url_alt, headers=api_headers, timeout=15)
+            resp = _get(api_url_alt, timeout=15)
         resp.raise_for_status()
         data = resp.json()
     except (requests.RequestException, json.JSONDecodeError):
@@ -289,7 +286,7 @@ def _scrape_single_listing_direct(url: str) -> dict | None:
     where the data contains the full listing object.
     """
     try:
-        resp = requests.get(url, headers=_HEADERS, timeout=20)
+        resp = _get(url, timeout=20)
         resp.raise_for_status()
     except requests.RequestException as e:
         st.warning(f"Fout bij ophalen pand: {e}")
@@ -393,7 +390,7 @@ def _fetch_search_page(url: str, page: int = 1) -> dict | None:
     page_url = _add_page_param(url, page)
 
     try:
-        resp = requests.get(page_url, headers=_HEADERS, timeout=20)
+        resp = _get(page_url, timeout=20)
         resp.raise_for_status()
     except requests.RequestException as e:
         st.warning(f"Fout bij ophalen pagina {page}: {e}")
