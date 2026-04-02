@@ -45,6 +45,11 @@ def render_property_detail(listing: dict, analysis: dict, score_data: dict, para
 
     st.divider()
 
+    # === 3b. MARKT VERGELIJKBARE PANDEN (live van Immobiliare.it) ===
+    _render_market_comparables(listing, analysis)
+
+    st.divider()
+
     # === 4. LOCATIEANALYSE ===
     st.subheader("Locatieanalyse")
     _render_location_analysis(listing, analysis)
@@ -404,6 +409,176 @@ def _render_sale_price_justification(listing: dict, analysis: dict):
             format_eur(final_prices.get("high", 0) * surface),
             help=format_eur_per_m2(final_prices.get("high", 0)),
         )
+
+
+# ============================================================
+# MARKT VERGELIJKBARE PANDEN (LIVE IMMOBILIARE.IT)
+# ============================================================
+
+def _render_market_comparables(listing: dict, analysis: dict):
+    """
+    Haalt vergelijkbare gerenoveerde panden op van Immobiliare.it
+    en toont ze als kaartjes met foto, prijs, afstand en link.
+
+    Wordt gecacht in session state per pand-URL zodat we niet
+    bij elke rerender opnieuw scrapen.
+    """
+    from services.apify_client import fetch_market_comparables
+
+    sale_estimate = analysis.get("sale_price_estimate", {})
+    final_prices = sale_estimate.get("final_price_per_m2", {})
+    comparable_url = sale_estimate.get("comparable_search_url", "")
+    surface = listing.get("surface_m2", 0)
+
+    if not comparable_url or not surface:
+        return
+
+    # Bereken doelverkoopprijs (mid-scenario)
+    sale_price_mid = final_prices.get("mid", 0) * surface
+    if sale_price_mid <= 0:
+        return
+
+    st.subheader("Marktvalidatie — Vergelijkbare Te Koop")
+    st.caption(
+        "Gerenoveerde panden momenteel te koop in dezelfde wijk en prijsklasse. "
+        "Vergelijk deze met je geschatte verkoopprijs om te valideren of je inschatting klopt."
+    )
+
+    # Cache key per pand + verkoopprijs (zodat wijzigen van slider ook herlaadt)
+    price_bucket = int(sale_price_mid / 25000) * 25000  # Afronden op 25k blokken
+    cache_key = f"market_comps_{listing.get('url', '')}_{price_bucket}"
+
+    if cache_key not in st.session_state:
+        # Haal op met spinner
+        with st.spinner("Vergelijkbare panden ophalen van Immobiliare.it..."):
+            try:
+                comps = fetch_market_comparables(
+                    comparable_search_url=comparable_url,
+                    target_price=sale_price_mid,
+                    target_surface=surface,
+                    target_lat=listing.get("latitude"),
+                    target_lng=listing.get("longitude"),
+                    exclude_url=listing.get("url", ""),
+                    max_results=9,
+                )
+                st.session_state[cache_key] = comps
+            except Exception as e:
+                st.warning(f"Kon vergelijkbare panden niet ophalen: {e}")
+                st.session_state[cache_key] = []
+
+    comparables = st.session_state[cache_key]
+
+    if not comparables:
+        st.info("Geen vergelijkbare gerenoveerde panden gevonden in deze prijsklasse.")
+        return
+
+    # Toon samenvatting
+    avg_price_m2 = sum(c["price_per_m2"] for c in comparables) / len(comparables)
+    my_price_m2 = final_prices.get("mid", 0)
+    delta_pct = ((my_price_m2 - avg_price_m2) / avg_price_m2 * 100) if avg_price_m2 > 0 else 0
+
+    summary_col1, summary_col2, summary_col3 = st.columns(3)
+    with summary_col1:
+        st.metric("Vergelijkbare panden", len(comparables))
+    with summary_col2:
+        st.metric(
+            "Gem. prijs/m² markt",
+            format_eur_per_m2(avg_price_m2),
+        )
+    with summary_col3:
+        delta_color = "normal" if abs(delta_pct) < 10 else ("inverse" if delta_pct > 10 else "off")
+        st.metric(
+            "Jouw schatting vs. markt",
+            format_eur_per_m2(my_price_m2),
+            delta=f"{delta_pct:+.1f}%",
+            delta_color=delta_color,
+        )
+
+    # Render kaartjes in grid van 3
+    COLS = 3
+    for row_start in range(0, len(comparables), COLS):
+        row = comparables[row_start:row_start + COLS]
+        cols = st.columns(COLS)
+
+        for col_idx, comp in enumerate(row):
+            with cols[col_idx]:
+                _render_market_comp_card(comp, row_start + col_idx)
+
+
+def _render_market_comp_card(comp: dict, idx: int):
+    """Rendert een kaartje voor een vergelijkbaar marktpand."""
+    images = comp.get("images", [])
+    price = comp.get("price", 0)
+    price_per_m2 = comp.get("price_per_m2", 0)
+    surface = comp.get("surface_m2", 0)
+    zone = comp.get("zone", "")
+    address = comp.get("address", "")
+    url = comp.get("url", "")
+    rooms = comp.get("rooms")
+    condition = comp.get("condition", "")
+    distance_m = comp.get("distance_m")
+
+    with st.container(border=True):
+        # Foto preview
+        if images:
+            img_url = images[0]
+            st.markdown(
+                f'<a href="{url}" target="_blank" style="text-decoration:none;">'
+                f'<img src="{img_url}" '
+                f'style="width:100%;height:160px;object-fit:cover;border-radius:6px;" '
+                f'loading="lazy">'
+                f'</a>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                '<div style="background:#e9ecef;height:160px;display:flex;'
+                'align-items:center;justify-content:center;border-radius:6px;">'
+                '<span style="color:#6c757d;font-size:0.85em;">Geen foto</span></div>',
+                unsafe_allow_html=True,
+            )
+
+        # Prijs + prijs/m²
+        st.markdown(
+            f'<div style="margin:6px 0;">'
+            f'<span style="font-size:1.1em;font-weight:bold;color:#1a365d;">'
+            f'{format_eur(price)}</span>'
+            f'<span style="color:#888;font-size:0.85em;margin-left:8px;">'
+            f'{format_eur_per_m2(price_per_m2)}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        # Oppervlakte + kamers
+        info_parts = [format_m2(surface)]
+        if rooms:
+            info_parts.append(f"{rooms} kamers")
+        if condition:
+            cond_map = {"good": "Goed", "new": "Nieuw", "to_renovate": "Te renoveren",
+                        "renovated": "Gerenoveerd", "partially_renovated": "Deels gerenoveerd"}
+            info_parts.append(cond_map.get(condition, condition))
+        st.caption(" · ".join(info_parts))
+
+        # Afstand
+        if distance_m is not None:
+            if distance_m < 1000:
+                dist_text = f"📍 {distance_m}m afstand"
+            else:
+                dist_text = f"📍 {distance_m / 1000:.1f}km afstand"
+            st.caption(dist_text)
+
+        # Adres
+        if address:
+            display_addr = address[:35] + "..." if len(address) > 35 else address
+            st.caption(display_addr)
+
+        # Link naar Immobiliare.it
+        if url:
+            st.link_button(
+                "Bekijk op Immobiliare.it",
+                url,
+                use_container_width=True,
+            )
 
 
 # ============================================================

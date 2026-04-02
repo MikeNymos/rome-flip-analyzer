@@ -452,6 +452,119 @@ def _run_actor(api_key: str, actor_id: str, run_input: dict) -> list[dict]:
     return results
 
 
+def fetch_market_comparables(
+    comparable_search_url: str,
+    target_price: float,
+    target_surface: float,
+    target_lat: float | None = None,
+    target_lng: float | None = None,
+    exclude_url: str = "",
+    max_results: int = 8,
+) -> list[dict]:
+    """
+    Haalt vergelijkbare gerenoveerde panden op van Immobiliare.it
+    op basis van geschatte verkoopprijs en oppervlakte.
+
+    Wordt alleen aangeroepen vanuit de detail-view (niet voor bulk-analyse).
+
+    Args:
+        comparable_search_url: Basis zoek-URL voor de wijk (uit neighborhoods.py).
+        target_price: Geschatte verkoopprijs na renovatie (totaal).
+        target_surface: Oppervlakte in m2 van het doelpand.
+        target_lat: Breedtegraad van het doelpand (optioneel, voor afstandsberekening).
+        target_lng: Lengtegraad van het doelpand (optioneel, voor afstandsberekening).
+        exclude_url: URL van het huidige pand (wordt uitgefilterd).
+        max_results: Maximum aantal resultaten.
+
+    Returns:
+        Lijst van vergelijkbare panden met afstandsinformatie.
+    """
+    import math
+
+    # Bepaal prijsrange (±30% van geschatte verkoopprijs)
+    price_min = max(50000, int(target_price * 0.70))
+    price_max = int(target_price * 1.35)
+
+    # Bepaal oppervlakterange (±40% van doelpand)
+    surface_min = max(25, int(target_surface * 0.60))
+    surface_max = int(target_surface * 1.50)
+
+    # Bouw zoek-URL met filters
+    separator = "&" if "?" in comparable_search_url else "?"
+    search_url = (
+        f"{comparable_search_url}{separator}"
+        f"prezzoMinimo={price_min}&prezzoMassimo={price_max}"
+        f"&superficieMinima={surface_min}&superficieMassima={surface_max}"
+    )
+
+    # Haal eerste pagina op (maximaal ~25 resultaten)
+    page_data = _fetch_search_page(search_url, page=1)
+
+    # Fallback: probeer zonder oppervlaktefilter
+    if not page_data:
+        search_url_no_surface = (
+            f"{comparable_search_url}{separator}"
+            f"prezzoMinimo={price_min}&prezzoMassimo={price_max}"
+        )
+        page_data = _fetch_search_page(search_url_no_surface, page=1)
+
+    # Tweede fallback: probeer schone URL
+    if not page_data:
+        clean_url = _clean_search_url(search_url)
+        page_data = _fetch_search_page(clean_url, page=1)
+
+    if not page_data:
+        return []
+
+    raw_results = page_data.get("results", [])
+
+    # Converteer naar plat formaat
+    comparables = []
+    for item in raw_results:
+        real_estate = item.get("realEstate", item)
+        converted = _convert_next_data_to_flat(real_estate)
+        if not converted:
+            continue
+
+        # Filter het huidige pand uit
+        if exclude_url and converted.get("url") == exclude_url:
+            continue
+
+        # Bereken afstand als coördinaten beschikbaar zijn
+        if (target_lat and target_lng
+                and converted.get("latitude") and converted.get("longitude")):
+            dist = _haversine_km(
+                target_lat, target_lng,
+                converted["latitude"], converted["longitude"],
+            )
+            converted["distance_km"] = round(dist, 2)
+            converted["distance_m"] = int(dist * 1000)
+        else:
+            converted["distance_km"] = None
+            converted["distance_m"] = None
+
+        comparables.append(converted)
+
+    # Sorteer op afstand (dichtsbij eerst), None achteraan
+    comparables.sort(key=lambda x: x.get("distance_km") if x.get("distance_km") is not None else 999)
+
+    return comparables[:max_results]
+
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Berekent de hemelsbrede afstand in km tussen twee coördinaten."""
+    import math
+
+    R = 6371  # Aardstraal in km
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (math.sin(dlat / 2) ** 2
+         + math.cos(math.radians(lat1))
+         * math.cos(math.radians(lat2))
+         * math.sin(dlon / 2) ** 2)
+    return R * 2 * math.asin(math.sqrt(a))
+
+
 def validate_immobiliare_url(url: str) -> tuple[bool, str]:
     """
     Valideert of de URL een geldige Immobiliare.it URL is.
