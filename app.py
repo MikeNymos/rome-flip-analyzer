@@ -41,15 +41,22 @@ def _inject_theme_css():
     """Injecteert premium CSS op basis van het huidige thema (light/dark)."""
     dark = st.session_state.get("dark_mode", False)
 
-    common = """
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    # Font laden via <link> tag (niet @import, dat breekt in Streamlit)
+    st.markdown(
+        '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">',
+        unsafe_allow_html=True,
+    )
 
+    common = """
     /* === GLOBAL === */
     .stApp { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important; }
     .stApp > header { background-color: transparent !important; }
     #MainMenu, footer, [data-testid="stDecoration"] { display: none !important; }
     h1, h2, h3, h4, h5 { font-family: 'Inter', sans-serif !important; letter-spacing: -0.01em !important; }
-    p, li, span, label, td, th { font-family: 'Inter', sans-serif !important; }
+    .stMarkdown p, .stMarkdown li, .stMarkdown td, .stMarkdown th,
+    [data-testid="stMetricValue"], [data-testid="stMetricLabel"] {
+        font-family: 'Inter', sans-serif !important;
+    }
 
     /* === SIDEBAR (both modes) === */
     section[data-testid="stSidebar"] {
@@ -201,8 +208,8 @@ def _inject_theme_css():
 
         /* Expander */
         [data-testid="stExpander"] { border-color: rgba(255,255,255,0.08) !important; }
-        .streamlit-expanderHeader,
-        [data-testid="stExpanderToggleDetails"] summary span { color: #E8E0D8 !important; }
+        [data-testid="stExpander"] summary { color: #E8E0D8 !important; }
+        [data-testid="stExpander"] summary span { color: #E8E0D8 !important; }
 
         /* Containers with border */
         [data-testid="stVerticalBlockBorderWrapper"] {
@@ -309,9 +316,7 @@ def _inject_theme_css():
         }
 
         /* Expander */
-        .streamlit-expanderHeader {
-            background: #FAF7F4 !important;
-            border-radius: 12px !important;
+        [data-testid="stExpander"] summary {
             font-weight: 600 !important;
         }
 
@@ -497,8 +502,8 @@ def main():
 
     # === SIDEBAR ===
     st.sidebar.markdown(
-        "<h2 style='color: #1A1A1A; margin-bottom: 0;'>Rome Flip Analyzer</h2>"
-        "<p style='color: #C9A24E; font-size: 0.9em; margin-top: 0;'>Vastgoed Investeringsanalyse</p>",
+        "<h2 style='color: #FAF7F4; margin-bottom: 0; font-family: Inter, sans-serif;'>Rome Flip Analyzer</h2>"
+        "<p style='color: #C9A24E; font-size: 0.9em; margin-top: 0; font-family: Inter, sans-serif;'>Vastgoed Investeringsanalyse</p>",
         unsafe_allow_html=True,
     )
 
