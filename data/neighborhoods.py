@@ -196,6 +196,7 @@ DEFAULT_BENCHMARK = {
 
 # Alias-mapping voor fuzzy matching van wijknamen uit Immobiliare.it
 ZONE_ALIASES: dict[str, str] = {
+    # Prati (inclusief Cipro, Balduina-rand, Della Vittoria)
     "prati": "Prati",
     "mazzini": "Prati",
     "prati/mazzini": "Prati",
@@ -205,6 +206,21 @@ ZONE_ALIASES: dict[str, str] = {
     "rione prati": "Prati",
     "cola di rienzo": "Prati",
     "delle vittorie": "Prati",
+    "della vittoria": "Prati",
+    "cipro": "Prati",
+    "cipro - musei vaticani": "Prati",
+    "cipro/musei vaticani": "Prati",
+    "ottaviano": "Prati",
+    "ottaviano - san pietro": "Prati",
+    "ottaviano/san pietro": "Prati",
+    "san pietro": "Prati",
+    "vaticano": "Prati",
+    "aurelio": "Prati",
+    "balduina": "Prati",
+    "trionfale": "Prati",
+    "medaglie d'oro": "Prati",
+    "piazza mazzini": "Prati",
+    # Trieste / Salario
     "trieste": "Trieste",
     "salario": "Trieste",
     "trieste/salario": "Trieste",
@@ -212,17 +228,26 @@ ZONE_ALIASES: dict[str, str] = {
     "trieste-salario": "Trieste",
     "quartiere trieste": "Trieste",
     "nomentano": "Trieste",
+    "coppede": "Trieste",
+    "quartiere coppede": "Trieste",
+    # Parioli
     "parioli": "Parioli",
     "quartiere parioli": "Parioli",
     "parioli - pinciano": "Parioli",
+    "parioli/pinciano": "Parioli",
     "pinciano": "Parioli",
+    # Flaminio
     "flaminio": "Flaminio",
     "quartiere flaminio": "Flaminio",
     "flaminio - ponte milvio": "Flaminio",
+    "flaminio/ponte milvio": "Flaminio",
     "ponte milvio": "Flaminio",
+    "vigna clara": "Flaminio",
+    # Centro Storico
     "centro storico": "Centro Storico",
     "centro": "Centro Storico",
     "rione monti": "Centro Storico",
+    "monti": "Centro Storico",
     "trastevere": "Centro Storico",
     "navona": "Centro Storico",
     "pantheon": "Centro Storico",
@@ -230,6 +255,35 @@ ZONE_ALIASES: dict[str, str] = {
     "campo marzio": "Centro Storico",
     "trevi": "Centro Storico",
     "spagna": "Centro Storico",
+    "borgo": "Centro Storico",
+    "regola": "Centro Storico",
+    "pigna": "Centro Storico",
+    "colonna": "Centro Storico",
+    "parione": "Centro Storico",
+    "ponte": "Centro Storico",
+    "sant'eustachio": "Centro Storico",
+    "ripa": "Centro Storico",
+    # Testaccio
+    "testaccio": "Testaccio",
+    "rione testaccio": "Testaccio",
+    "aventino": "Testaccio",
+    "piramide": "Testaccio",
+    "ostiense": "Testaccio",
+    # San Giovanni
+    "san giovanni": "San Giovanni",
+    "re di roma": "San Giovanni",
+    "appio latino": "San Giovanni",
+    "appio-latino": "San Giovanni",
+    "appio": "San Giovanni",
+    "tuscolano": "San Giovanni",
+    "furio camillo": "San Giovanni",
+    # Monteverde
+    "monteverde": "Monteverde",
+    "monteverde vecchio": "Monteverde",
+    "monteverde nuovo": "Monteverde",
+    "gianicolense": "Monteverde",
+    # Mazzini - Delle Vittorie (als apart van Prati indien nodig)
+    "mazzini - delle vittorie": "Prati",
 }
 
 
