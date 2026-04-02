@@ -555,6 +555,12 @@ def _render_investment_narrative(listing: dict, analysis: dict, score_data: dict
         strengths.append("laag risicoprofiel")
     if yoy > 3:
         strengths.append(f"stijgende markt ({yoy:.1f}% jaarlijkse prijsgroei)")
+    # Street quality als sterkte
+    street_q = listing.get("_street_quality")
+    if street_q and street_q.get("tier") == "A":
+        strengths.append(f"premium straat ({street_q.get('matched_street', 'toplocatie')})")
+    elif street_q and street_q.get("tier") == "B":
+        strengths.append(f"bovengemiddelde straat ({street_q.get('matched_street', 'goede straat')})")
 
     if strengths:
         strength_text = "**Sterktes:** " + "; ".join(strengths) + ". "
@@ -575,6 +581,9 @@ def _render_investment_narrative(listing: dict, analysis: dict, score_data: dict
             weaknesses.append(f"te klein ({surface:.0f}m²) voor optimale flip-marge")
         else:
             weaknesses.append(f"oppervlakte ({surface:.0f}m²) buiten sweet spot")
+    # Street quality als zwakte
+    if street_q and street_q.get("tier") == "D":
+        weaknesses.append(f"minder gewilde straat ({street_q.get('matched_street', 'ondergemiddeld')}) — drukt verkoopprijs met {street_q.get('adjustment_pct', 0)*100:.0f}%")
 
     # Add relevant risk flags
     for flag in risk_flags[:4]:  # max 4 to keep it readable
@@ -599,6 +608,34 @@ def _render_investment_narrative(listing: dict, analysis: dict, score_data: dict
             trend = "stijgend" if yoy > 0 else "dalend"
             loc_text += f"Prijstrend: {trend} ({yoy:+.1f}%/jaar). "
         loc_text += f"Gemiddelde verkooptijd na renovatie: {selling_months} maanden. "
+
+        # Straatkwaliteit context
+        street_q = listing.get("_street_quality")
+        if street_q and street_q.get("tier") in ("A", "B", "D"):
+            tier = street_q["tier"]
+            matched = street_q.get("matched_street", "")
+            adj_pct = street_q.get("adjustment_pct", 0)
+            if tier == "A":
+                loc_text += (
+                    f"**Straatkwaliteit: premium** — {matched or 'toplocatie'} is een van de "
+                    f"meest gewilde straten in {zone}. Dit rechtvaardigt een opslag van "
+                    f"{adj_pct*100:+.0f}% op de verkoopprijs/m². "
+                )
+            elif tier == "B":
+                loc_text += (
+                    f"**Straatkwaliteit: bovengemiddeld** — {matched or 'goede straat'} scoort "
+                    f"beter dan het wijkgemiddelde, met een geschatte opslag van "
+                    f"{adj_pct*100:+.0f}% op de verkoopprijs. "
+                )
+            elif tier == "D":
+                loc_text += (
+                    f"**Straatkwaliteit: ondergemiddeld** — {matched or 'minder gewilde straat'} "
+                    f"presteert zwakker dan het wijkgemiddelde. Verwacht een korting van "
+                    f"{adj_pct*100:.0f}% op de verkoopprijs/m², ondanks de wijk. "
+                    f"Dit is een belangrijk punt: een minder goede straat in een goede wijk "
+                    f"drukt de marge aanzienlijk. "
+                )
+
         parts.append(loc_text)
 
     # ── 7. CONCLUSIE / AANBEVELING ──

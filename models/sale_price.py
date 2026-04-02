@@ -5,7 +5,7 @@ Combineert wijkbenchmarks met pandspecifieke correcties.
 from __future__ import annotations
 
 from utils.helpers import format_eur, format_eur_per_m2
-from services.feature_extractor import is_premium_street
+from services.feature_extractor import is_premium_street, get_street_quality
 
 
 def estimate_sale_price(
@@ -142,12 +142,20 @@ def estimate_sale_price(
              "Interne woningen (op binnenplaats/chiostrina) met weinig "
              "natuurlijk licht verkopen voor 6-10% minder.")
 
-    # ── 6. MICRO-LOCATIE / PREMIUM STRAAT ─────────────────
+    # ── 6. STRAATKWALITEIT (micro-locatie) ─────────────────
     address = feat.get("address") or listing.get("address", "")
-    if is_premium_street(zone_name, address):
-        _add(adjustments, "Premium straat", 0.05,
-             f"Adres op een topstraat in {zone_name} levert structureel "
-             f"hogere verkoopprijzen op. Premium van ~5%.")
+    street_quality = get_street_quality(zone_name, address)
+    listing["_street_quality"] = street_quality  # cache voor gebruik in narratief
+
+    if street_quality["tier"] == "A":
+        _add(adjustments, f"Premium straat ({street_quality['matched_street'] or 'toplocatie'})", 0.06,
+             street_quality["explanation"])
+    elif street_quality["tier"] == "B":
+        _add(adjustments, f"Goede straat ({street_quality['matched_street'] or 'bovengemiddeld'})", 0.03,
+             street_quality["explanation"])
+    elif street_quality["tier"] == "D":
+        _add(adjustments, f"Minder gewilde straat ({street_quality['matched_street'] or 'ondergemiddeld'})", -0.04,
+             street_quality["explanation"])
 
     # ── 7. ENERGIEPRESTATIE ───────────────────────────────
     energy = listing.get("energy_class", "")

@@ -167,44 +167,303 @@ def extract_property_features(listing: dict) -> dict:
     return features
 
 
-# ── Premium straten per wijk ───────────────────────────────
+# ══════════════════════════════════════════════════════════════
+# STRAAT-KWALITEITSSYSTEEM — Tiered per wijk
+# ══════════════════════════════════════════════════════════════
+#
+# Vier niveaus:
+#   A (Premium)      : +6-8% — Beste adressen, hoogste vraag en prijzen
+#   B (Goed)         : +3%   — Bovengemiddelde straten, goede reputatie
+#   C (Gemiddeld)    : 0%    — Standaard (default, niet in een lijst)
+#   D (Minder gewild): -3-5% — Luidruchtig, commercieel, perifeer
+#
+# Straten die niet in A/B/D voorkomen worden automatisch C.
 
-PREMIUM_STREETS: dict[str, list[str]] = {
-    "Prati": [
-        "Via Cola di Rienzo", "Via dei Gracchi", "Via Ottaviano",
-        "Via Crescenzio", "Viale Giulio Cesare", "Via Tacito",
-        "Via Candia", "Piazza Cavour", "Via Ovidio",
-        "Piazza Mazzini", "Via Andrea Doria", "Via Lepanto",
-    ],
-    "Trieste": [
-        "Via Nomentana", "Piazza Buenos Aires", "Via Tagliamento",
-        "Corso Trieste", "Via Salaria", "Viale Regina Margherita",
-        "Via Nemorense", "Via Chiana", "Via Po",
-    ],
-    "Parioli": [
-        "Viale Parioli", "Via dei Monti Parioli", "Piazza Ungheria",
-        "Via Archimede", "Via Bertoloni", "Via Gramsci",
-        "Via Chelini", "Piazza delle Muse",
-    ],
-    "Flaminio": [
-        "Piazza del Popolo", "Via Flaminia", "Viale del Vignola",
-        "Lungotevere Flaminio", "Via Guido Reni",
-    ],
-    "Centro Storico": [
-        "Via del Corso", "Via dei Condotti", "Piazza Navona",
-        "Via Giulia", "Via dei Coronari", "Campo de' Fiori",
-    ],
-    "Trastevere": [
-        "Via della Lungara", "Piazza Santa Maria",
-        "Viale Trastevere", "Via della Scala",
-    ],
+STREET_QUALITY: dict[str, dict[str, list[str]]] = {
+    "Prati": {
+        "A": [
+            "Piazza Mazzini", "Piazza Cavour", "Via Ovidio",
+            "Via Marcantonio Colonna", "Via dei Gracchi",
+            "Piazza dei Quiriti", "Via Pompeo Magno",
+        ],
+        "B": [
+            "Via Cola di Rienzo", "Via Crescenzio", "Via Ottaviano",
+            "Via Tacito", "Via Andrea Doria", "Viale Giulio Cesare",
+            "Via Lepanto", "Via Fabio Massimo", "Via Paolo Emilio",
+            "Via Germanico", "Via Virgilio",
+        ],
+        "D": [
+            "Via Candia", "Via Barletta", "Via Leone IV",
+            "Via degli Scipioni", "Via Tunisi", "Via Mocenigo",
+            "Borgo", "Via della Conciliazione", "Via Pfeiffer",
+        ],
+    },
+    "Mazzini - Delle Vittorie": {
+        "A": [
+            "Piazza Mazzini", "Viale Mazzini", "Via della Giuliana",
+            "Via Trionfale",
+        ],
+        "B": [
+            "Via Baldo degli Ubaldi", "Via degli Ammiragli",
+            "Via Monte Zebio", "Via Monte Santo",
+        ],
+        "D": [
+            "Via Cipro", "Via Angelo Emo", "Via Anastasio II",
+        ],
+    },
+    "Trieste": {
+        "A": [
+            "Piazza Buenos Aires", "Via Tagliamento", "Via Chiana",
+            "Via Po", "Corso Trieste", "Via Dora",
+            "Via Isonzo", "Via Ticino",
+        ],
+        "B": [
+            "Via Nomentana", "Via Nemorense", "Viale Regina Margherita",
+            "Via Salaria", "Via Nizza", "Via Alessandria",
+            "Via Asmara", "Via Bergamo",
+        ],
+        "D": [
+            "Via Tiburtina", "Via di Priscilla", "Via Conca d'Oro",
+            "Via Val d'Aosta", "Via Somalia",
+        ],
+    },
+    "Parioli": {
+        "A": [
+            "Viale Parioli", "Via dei Monti Parioli", "Piazza delle Muse",
+            "Via Archimede", "Via Stoppani", "Via Mercalli",
+            "Via Antonelli", "Via Bruxelles",
+        ],
+        "B": [
+            "Piazza Ungheria", "Via Bertoloni", "Via Chelini",
+            "Via Gramsci", "Via Panama", "Via Lima",
+            "Viale Bruno Buozzi", "Via Pinciana",
+        ],
+        "D": [
+            "Viale Maresciallo Pilsudski", "Via Flaminia Vecchia",
+            "Via dei Campi Sportivi", "Lungotevere delle Navi",
+        ],
+    },
+    "Flaminio": {
+        "A": [
+            "Piazza del Popolo", "Lungotevere Flaminio",
+            "Via Guido Reni", "Via Flaminia Vecchia",
+        ],
+        "B": [
+            "Via Flaminia", "Viale del Vignola", "Via Donatello",
+            "Via Pinturicchio", "Via Fracassini",
+        ],
+        "D": [
+            "Viale Tiziano", "Viale della XVII Olimpiade",
+            "Via delle Terme di Diocleziano",
+        ],
+    },
+    "Centro Storico": {
+        "A": [
+            "Via Giulia", "Via dei Coronari", "Piazza Navona",
+            "Via del Governo Vecchio", "Via dei Condotti",
+            "Piazza di Spagna", "Via del Babuino",
+            "Via Margutta", "Via di Monserrato",
+            "Piazza Farnese", "Via dei Banchi Vecchi",
+        ],
+        "B": [
+            "Via del Corso", "Campo de' Fiori", "Via dei Giubbonari",
+            "Via dei Pettinari", "Piazza del Pantheon",
+            "Via della Scrofa", "Via della Pace",
+            "Rione Monti", "Via dei Serpenti",
+        ],
+        "D": [
+            "Via Cavour", "Via Nazionale", "Via Marsala",
+            "Via Gioberti", "Piazza dei Cinquecento",
+            "Via Merulana", "Via dello Statuto",
+            "Via Principe Amedeo",
+        ],
+    },
+    "Trastevere": {
+        "A": [
+            "Piazza Santa Maria", "Via della Lungara",
+            "Via dei Genovesi", "Via della Paglia",
+            "Piazza San Cosimato",
+        ],
+        "B": [
+            "Via della Scala", "Viale Trastevere",
+            "Via Garibaldi", "Via della Renella",
+            "Vicolo del Cedro",
+        ],
+        "D": [
+            "Viale di Trastevere", "Via Portuense",
+            "Via Ettore Rolli", "Via Induno",
+        ],
+    },
+    "Testaccio": {
+        "A": [
+            "Piazza Testaccio", "Lungotevere Testaccio",
+            "Via Marmorata",
+        ],
+        "B": [
+            "Via Galvani", "Via Giovanni Branca",
+            "Via Zabaglia",
+        ],
+        "D": [
+            "Via Ostiense", "Via del Commercio",
+            "Via Nicola Zabaglia",
+        ],
+    },
+    "San Giovanni": {
+        "A": [
+            "Via Gallia", "Via Taranto",
+            "Piazza Re di Roma",
+        ],
+        "B": [
+            "Via Appia Nuova", "Viale Manzoni",
+            "Via Monza", "Via La Spezia",
+        ],
+        "D": [
+            "Via Tuscolana", "Via Casilina",
+            "Via dello Scalo San Lorenzo",
+        ],
+    },
+    "Monteverde": {
+        "A": [
+            "Via Carini", "Piazza San Giovanni di Dio",
+            "Viale dei Quattro Venti",
+        ],
+        "B": [
+            "Via Donna Olimpia", "Via Federico Ozanam",
+            "Via di Monteverde",
+        ],
+        "D": [
+            "Viale Trastevere", "Via Portuense",
+            "Via Fonteiana",
+        ],
+    },
+}
+
+# Tier configuratie: adjustment percentages en labels
+STREET_TIERS = {
+    "A": {
+        "label": "Premium straat",
+        "label_short": "A-straat (premium)",
+        "adjustment_pct": 0.06,
+        "color": "#2d8a4e",
+    },
+    "B": {
+        "label": "Goede straat",
+        "label_short": "B-straat (goed)",
+        "adjustment_pct": 0.03,
+        "color": "#3da55d",
+    },
+    "C": {
+        "label": "Gemiddelde straat",
+        "label_short": "C-straat (gemiddeld)",
+        "adjustment_pct": 0.0,
+        "color": "#d4a017",
+    },
+    "D": {
+        "label": "Minder gewilde straat",
+        "label_short": "D-straat (minder gewild)",
+        "adjustment_pct": -0.04,
+        "color": "#e07c24",
+    },
 }
 
 
-def is_premium_street(zone: str, address: str) -> bool:
-    """Check of het adres op een premium straat ligt."""
+def get_street_quality(zone: str, address: str) -> dict:
+    """
+    Bepaalt de straatkwaliteit op basis van wijk en adres.
+
+    Returns:
+        Dict met tier (A/B/C/D), label, adjustment_pct, matched_street,
+        explanation, en color.
+    """
     if not address:
-        return False
+        return _build_street_result("C", zone, "", "Geen adres beschikbaar voor straatanalyse.")
+
     address_lower = address.lower()
-    streets = PREMIUM_STREETS.get(zone, [])
-    return any(s.lower() in address_lower for s in streets)
+
+    # Zoek in alle zone-varianten (fuzzy zone matching)
+    zone_data = _match_zone_streets(zone)
+
+    if zone_data:
+        # Check A-straten
+        for street in zone_data.get("A", []):
+            if street.lower() in address_lower:
+                return _build_street_result(
+                    "A", zone, street,
+                    f"{street} is een van de meest gewilde adressen in {zone}. "
+                    f"Toplocatie met hoge vraag, sterke doorverkoop en structureel hogere prijzen/m²."
+                )
+
+        # Check B-straten
+        for street in zone_data.get("B", []):
+            if street.lower() in address_lower:
+                return _build_street_result(
+                    "B", zone, street,
+                    f"{street} is een goede straat in {zone}. "
+                    f"Bovengemiddelde vraag en residentieel karakter. "
+                    f"Goede verkoopbaarheid na renovatie."
+                )
+
+        # Check D-straten
+        for street in zone_data.get("D", []):
+            if street.lower() in address_lower:
+                return _build_street_result(
+                    "D", zone, street,
+                    f"{street} is een minder gewilde straat in {zone}. "
+                    f"Factoren als verkeersdruk, commerciële activiteit of perifere ligging "
+                    f"drukken de verkoopprijs t.o.v. het wijkgemiddelde."
+                )
+
+    # Geen match → C (gemiddeld)
+    return _build_street_result(
+        "C", zone, "",
+        f"Geen specifieke straat-data beschikbaar voor dit adres in {zone}. "
+        f"Standaard wijkgemiddelde wordt gehanteerd."
+    )
+
+
+def _match_zone_streets(zone: str) -> dict | None:
+    """Zoekt de juiste zone in STREET_QUALITY met fuzzy matching."""
+    if not zone:
+        return None
+
+    zone_lower = zone.lower()
+
+    # Exacte match
+    for key in STREET_QUALITY:
+        if key.lower() == zone_lower:
+            return STREET_QUALITY[key]
+
+    # Deel-match (bv. "Prati" in "Prati - Mazzini - Delle Vittorie")
+    for key in STREET_QUALITY:
+        if key.lower() in zone_lower or zone_lower in key.lower():
+            return STREET_QUALITY[key]
+
+    # Keyword match voor samengestelde wijknamen
+    zone_parts = set(zone_lower.replace("-", " ").replace("/", " ").split())
+    for key in STREET_QUALITY:
+        key_parts = set(key.lower().replace("-", " ").replace("/", " ").split())
+        if zone_parts & key_parts:  # intersection
+            return STREET_QUALITY[key]
+
+    return None
+
+
+def _build_street_result(tier: str, zone: str, matched_street: str, explanation: str) -> dict:
+    """Bouwt het resultaat-dict voor een straatkwaliteitsbeoordeling."""
+    tier_info = STREET_TIERS[tier]
+    return {
+        "tier": tier,
+        "label": tier_info["label"],
+        "label_short": tier_info["label_short"],
+        "adjustment_pct": tier_info["adjustment_pct"],
+        "matched_street": matched_street,
+        "explanation": explanation,
+        "color": tier_info["color"],
+        "zone": zone,
+    }
+
+
+def is_premium_street(zone: str, address: str) -> bool:
+    """Check of het adres op een premium straat ligt (backward compatible)."""
+    result = get_street_quality(zone, address)
+    return result["tier"] in ("A", "B")

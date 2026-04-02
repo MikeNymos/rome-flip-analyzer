@@ -1,10 +1,11 @@
 """
 Multi-factor locatiekwaliteitsanalyse.
-Beoordeelt locatie op basis van wijk, verdieping, lift, terras, oriëntatie, staat, etc.
+Beoordeelt locatie op basis van wijk, straat, verdieping, lift, terras, oriëntatie, staat, etc.
 """
 from __future__ import annotations
 
 import re
+from services.feature_extractor import get_street_quality
 
 
 def assess_location_quality(listing: dict, neighborhood_data: dict) -> dict:
@@ -61,6 +62,38 @@ def assess_location_quality(listing: dict, neighborhood_data: dict) -> dict:
                 f"Lagere vraag en langere verkooptijden ({selling_time} maanden). "
                 f"Hogere korting op vraagprijs mogelijk nodig."
             ),
+            "category": "negatief",
+        })
+        score += impact
+
+    # --- 1b. STRAATKWALITEIT (micro-locatie) ---
+    address = listing.get("address", "")
+    street_q = get_street_quality(zone_name, address)
+
+    if street_q["tier"] == "A":
+        impact = 12
+        factors.append({
+            "name": f"Premium straat: {street_q['matched_street'] or 'toplocatie'}",
+            "impact": impact,
+            "explanation": street_q["explanation"],
+            "category": "positief",
+        })
+        score += impact
+    elif street_q["tier"] == "B":
+        impact = 5
+        factors.append({
+            "name": f"Goede straat: {street_q['matched_street'] or 'bovengemiddeld'}",
+            "impact": impact,
+            "explanation": street_q["explanation"],
+            "category": "positief",
+        })
+        score += impact
+    elif street_q["tier"] == "D":
+        impact = -10
+        factors.append({
+            "name": f"Minder gewilde straat: {street_q['matched_street'] or 'ondergemiddeld'}",
+            "impact": impact,
+            "explanation": street_q["explanation"],
             "category": "negatief",
         })
         score += impact
