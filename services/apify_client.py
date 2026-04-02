@@ -209,27 +209,27 @@ def _fetch_single_via_search(listing_id: str) -> dict | None:
     try:
         detail_url = f"https://www.immobiliare.it/annunci/{listing_id}/"
         resp = _get(detail_url, timeout=20)
-            if resp.status_code == 200:
-                match = re.search(
-                    r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>',
-                    resp.text, re.DOTALL,
+        if resp.status_code == 200:
+            match = re.search(
+                r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>',
+                resp.text, re.DOTALL,
+            )
+            if match:
+                next_data = json.loads(match.group(1))
+                queries = (
+                    next_data.get("props", {})
+                    .get("pageProps", {})
+                    .get("dehydratedState", {})
+                    .get("queries", [])
                 )
-                if match:
-                    next_data = json.loads(match.group(1))
-                    queries = (
-                        next_data.get("props", {})
-                        .get("pageProps", {})
-                        .get("dehydratedState", {})
-                        .get("queries", [])
-                    )
-                    for query in queries:
-                        qdata = query.get("state", {}).get("data", {})
-                        if isinstance(qdata, dict):
-                            re_data = qdata.get("realEstate", qdata)
-                            if re_data and "properties" in re_data:
-                                converted = _convert_next_data_to_flat(re_data)
-                                if converted:
-                                    return converted
+                for query in queries:
+                    qdata = query.get("state", {}).get("data", {})
+                    if isinstance(qdata, dict):
+                        re_data = qdata.get("realEstate", qdata)
+                        if re_data and "properties" in re_data:
+                            converted = _convert_next_data_to_flat(re_data)
+                            if converted:
+                                return converted
     except (requests.RequestException, json.JSONDecodeError, KeyError):
         pass
 
