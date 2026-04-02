@@ -134,11 +134,11 @@ def _render_photo_gallery(listing: dict):
       .thumb.active {{ opacity:1; border-color:#1a365d; }}
 
       /* Lightbox overlay */
-      .lightbox {{ display:none; position:fixed; top:0; left:0; width:100vw; height:100vh;
-                   background:rgba(0,0,0,0.92); z-index:9999; align-items:center;
+      .lightbox {{ display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+                   background:rgba(0,0,0,0.95); z-index:9999; align-items:center;
                    justify-content:center; flex-direction:column; }}
       .lightbox.open {{ display:flex; }}
-      .lightbox-img {{ max-width:92vw; max-height:82vh; object-fit:contain;
+      .lightbox-img {{ max-width:90%; max-height:75%; object-fit:contain;
                        border-radius:4px; user-select:none; }}
       .lightbox-close {{ position:absolute; top:16px; right:24px; background:none;
                          border:none; color:#fff; font-size:36px; cursor:pointer;
@@ -153,7 +153,7 @@ def _render_photo_gallery(listing: dict):
       .lb-arrow-r {{ right:20px; }}
       .lb-counter {{ position:absolute; bottom:20px; color:#fff; font-size:14px;
                      background:rgba(0,0,0,0.5); padding:6px 16px; border-radius:20px; }}
-      .lb-thumbs {{ position:absolute; bottom:56px; display:flex; gap:6px; max-width:90vw;
+      .lb-thumbs {{ position:absolute; bottom:56px; display:flex; gap:6px; max-width:90%;
                     overflow-x:auto; padding:6px; scrollbar-width:thin; }}
       .lb-thumbs::-webkit-scrollbar {{ height:4px; }}
       .lb-thumbs::-webkit-scrollbar-thumb {{ background:rgba(255,255,255,0.3); border-radius:2px; }}
@@ -188,6 +188,7 @@ def _render_photo_gallery(listing: dict):
       var total = {total};
       var cur = 0;
       var lbOpen = false;
+      var frameOrigStyle = '';
 
       /* ---- Thumbnail strip (gallery) ---- */
       var thumbsEl = document.getElementById('thumbs');
@@ -220,9 +221,31 @@ def _render_photo_gallery(listing: dict):
         ts[cur].scrollIntoView({{ behavior:'smooth', inline:'center', block:'nearest' }});
       }}
 
+      /* ---- iframe fullscreen helper ---- */
+      function expandIframe() {{
+        try {{
+          var frame = window.frameElement;
+          if (frame) {{
+            frameOrigStyle = frame.style.cssText;
+            frame.style.cssText = 'position:fixed!important;top:0!important;left:0!important;' +
+              'width:100vw!important;height:100vh!important;z-index:99999!important;' +
+              'border:none!important;max-width:100vw!important;';
+          }}
+        }} catch(e) {{}}
+      }}
+      function restoreIframe() {{
+        try {{
+          var frame = window.frameElement;
+          if (frame) {{
+            frame.style.cssText = frameOrigStyle;
+          }}
+        }} catch(e) {{}}
+      }}
+
       /* ---- Lightbox ---- */
       function openLightbox() {{
         lbOpen = true;
+        expandIframe();
         var lb = document.getElementById('lightbox');
         lb.classList.add('open');
         lbGoTo(cur);
@@ -230,6 +253,7 @@ def _render_photo_gallery(listing: dict):
       function closeLightbox() {{
         lbOpen = false;
         document.getElementById('lightbox').classList.remove('open');
+        restoreIframe();
       }}
       function closeLightboxBg(e) {{
         if (e.target === document.getElementById('lightbox')) closeLightbox();
