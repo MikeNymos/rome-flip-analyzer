@@ -117,168 +117,187 @@ def run_immoweb_scraper(api_key: str, url: str, max_results: int = 100) -> list[
 
 def _normalize_immoweb_item(raw: dict) -> dict | None:
     """
-    Normaliseert een Immoweb listing naar het interne formaat.
-    Extraheert alle 35 velden uit de specificatie.
-    """
-    # Probeer genest formaat (window.classified) of plat formaat
-    prop = raw.get("property", raw)
-    price_obj = raw.get("price", {})
-    transaction = raw.get("transaction", {})
-    location = prop.get("location", {})
-    building = prop.get("building", {})
+    Normaliseert een Immoweb listing (van azzouzana actor) naar intern formaat.
 
-    # Prijs — verplicht
-    price = price_obj.get("mainValue") if isinstance(price_obj, dict) else raw.get("price")
+    Actor output structuur (gecontroleerd april 2026):
+        transaction.sale.price → prijs
+        property.livingDescription.netHabitableSurface → oppervlakte
+        property.location.address.postalCode → postcode
+        property.building.condition → staat
+        transaction.certificates.epc.score → EPC
+        media.pictures → foto URLs (dict met URLs als values)
+    """
+    prop = raw.get("property", {})
+    transaction = raw.get("transaction", {})
+    building = prop.get("building", {})
+    location = prop.get("location", {})
+    address = location.get("address", {}) if isinstance(location, dict) else {}
+
+    # === PRIJS (verplicht) ===
+    sale = transaction.get("sale", {}) if isinstance(transaction, dict) else {}
+    price = sale.get("price") if isinstance(sale, dict) else None
     if not price:
-        price = raw.get("Price") or raw.get("askingPrice")
+        # Fallback: platte structuur
+        price = raw.get("price") or raw.get("Price")
     if not price:
         return None
     try:
-        price = float(str(price).replace(".", "").replace(",", ".").replace("€", "").strip())
+        price = float(price)
     except (ValueError, TypeError):
         return None
 
-    # Oppervlakte — verplicht
+    # === OPPERVLAKTE (verplicht) ===
+    living_desc = prop.get("livingDescription", {})
     living_area = (
-        prop.get("netHabitableSurface")
-        or prop.get("surfaceTotal")
-        or raw.get("livingArea")
-        or raw.get("LivingArea")
-        or raw.get("surface")
+        living_desc.get("netHabitableSurface")
+        if isinstance(living_desc, dict) else None
     )
+    if not living_area:
+        living_area = prop.get("netHabitableSurface") or raw.get("livingArea") or raw.get("surface")
     if not living_area:
         return None
     try:
         living_area = float(living_area)
     except (ValueError, TypeError):
         return None
-
     if living_area <= 0 or price <= 0:
         return None
 
-    # Postcode — verplicht
-    postal_code = str(
-        location.get("postalCode")
-        or raw.get("postalCode")
-        or raw.get("PostalCode")
-        or ""
-    ).strip()
+    # === POSTCODE (verplicht) ===
+    postal_code = str(address.get("postalCode") or raw.get("postalCode") or "").strip()
     if not postal_code:
         return None
 
-    # Locatie
-    municipality = location.get("locality") or raw.get("locality") or raw.get("Municipality") or ""
-    street = location.get("street") or raw.get("street") or raw.get("Street") or ""
+    # === LOCATIE ===
+    municipality = address.get("locality") or address.get("district") or ""
+    street = address.get("street") or ""
+    street_number = address.get("number") or ""
+    if street and street_number:
+        street = f"{street} {street_number}"
+    floor_raw = address.get("floor")
     latitude = location.get("latitude") or raw.get("latitude")
     longitude = location.get("longitude") or raw.get("longitude")
 
-    # Type pand
-    prop_type = prop.get("type") or raw.get("propertyType") or raw.get("Type") or "APARTMENT"
-    prop_subtype = prop.get("subtype") or raw.get("propertySubType") or ""
+    # === TYPE PAND ===
+    prop_type = prop.get("type") or raw.get("type") or "APARTMENT"
+    prop_subtype = prop.get("subtype") or ""
 
-    # Staat
-    condition = building.get("condition") or raw.get("condition") or raw.get("Condition") or "TO_BE_DONE_UP"
+    # === STAAT ===
+    condition = building.get("condition") or raw.get("condition") or "TO_BE_DONE_UP"
 
-    # Gebouw details
-    construction_year = building.get("constructionYear") or raw.get("constructionYear")
+    # === GEBOUW ===
+    construction_year = building.get("constructionYear")
     if construction_year:
         try:
             construction_year = int(construction_year)
         except (ValueError, TypeError):
             construction_year = None
 
-    floor = location.get("floor") or raw.get("floor")
-    if floor is not None:
+    floor = None
+    if floor_raw is not None:
         try:
-            floor = int(floor)
+            floor = int(floor_raw)
         except (ValueError, TypeError):
-            floor = None
+            pass
 
-    floor_count = building.get("floorCount") or raw.get("floorCount")
+    floor_count = building.get("floorCount")
     if floor_count:
         try:
             floor_count = int(floor_count)
         except (ValueError, TypeError):
             floor_count = None
 
-    has_lift = building.get("hasLift") or raw.get("hasLift") or False
-    bedroom_count = prop.get("bedroomCount") or raw.get("bedroomCount") or 0
-    bathroom_count = prop.get("bathroomCount") or raw.get("bathroomCount") or 1
+    # Lift: in commonEquipment of building
+    common_eq = prop.get("commonEquipment", {})
+    has_lift = (
+        common_eq.get("hasLift")
+        if isinstance(common_eq, dict) else None
+    ) or building.get("hasLift") or False
 
-    # Buitenruimte
-    has_terrace = prop.get("hasTerrace") or raw.get("hasTerrace") or False
-    terrace_area = prop.get("terraceSurface") or raw.get("terraceSurface") or 0
-    has_garden = prop.get("hasGarden") or raw.get("hasGarden") or False
-    garden_area = prop.get("gardenSurface") or raw.get("gardenSurface") or 0
+    # Slaapkamers/badkamers
+    bedroom = prop.get("bedroom", {})
+    bedroom_count = bedroom.get("count") if isinstance(bedroom, dict) else 0
+    bathroom = prop.get("bathroom", {})
+    bathroom_count = bathroom.get("count") if isinstance(bathroom, dict) else 1
 
-    # Parking
-    parking_indoor = prop.get("parkingCountIndoor") or raw.get("parkingCountIndoor") or 0
-    parking_outdoor = prop.get("parkingCountOutdoor") or raw.get("parkingCountOutdoor") or 0
-    parking_count = int(parking_indoor or 0) + int(parking_outdoor or 0)
-    if parking_indoor and int(parking_indoor) > 0:
-        parking_type = "INDOOR_PARKING"
-    elif parking_outdoor and int(parking_outdoor) > 0:
-        parking_type = "OUTDOOR_PARKING"
-    else:
-        parking_type = "NONE"
+    # === BUITENRUIMTE ===
+    outdoor = prop.get("outdoor", {})
+    terrace = outdoor.get("terrace", {}) if isinstance(outdoor, dict) else {}
+    has_terrace = terrace.get("exists", False) if isinstance(terrace, dict) else False
+    terrace_area = terrace.get("surface", 0) if isinstance(terrace, dict) else 0
 
-    has_basement = prop.get("hasBasement") or raw.get("hasBasement") or False
+    garden = outdoor.get("garden", {}) if isinstance(outdoor, dict) else {}
+    has_garden = garden.get("exists", False) if isinstance(garden, dict) else False
+    garden_area = garden.get("surface", 0) if isinstance(garden, dict) else 0
 
-    # EPC
-    certs = transaction.get("certificates", raw.get("certificates", {}))
-    if isinstance(certs, dict):
-        epc_score = certs.get("epcScore") or raw.get("epcScore") or ""
-        epc_value = certs.get("primaryEnergyConsumptionPerSqm") or raw.get("primaryEnergyConsumptionPerSqm")
-    else:
-        epc_score = raw.get("epcScore", "")
-        epc_value = raw.get("primaryEnergyConsumptionPerSqm")
+    # === PARKING ===
+    parking = prop.get("parking", {})
+    parking_counts = parking.get("parkingSpaceCount", {}) if isinstance(parking, dict) else {}
+    parking_total = parking_counts.get("total", 0) if isinstance(parking_counts, dict) else 0
+    parking_type = "INDOOR_PARKING" if parking_total and int(parking_total) > 0 else "NONE"
 
+    # === KELDER ===
+    basement = prop.get("basementExists") or prop.get("basement", {})
+    has_basement = False
+    if isinstance(basement, dict):
+        has_basement = basement.get("exists", False)
+    elif isinstance(basement, bool):
+        has_basement = basement
+
+    # === EPC ===
+    certs = transaction.get("certificates", {})
+    epc_obj = certs.get("epc", {}) if isinstance(certs, dict) else {}
+    epc_score = epc_obj.get("score", "") if isinstance(epc_obj, dict) else ""
+    energy_cons = certs.get("primaryEnergyConsumption", {}) if isinstance(certs, dict) else {}
+    epc_value = energy_cons.get("perSqm") if isinstance(energy_cons, dict) else None
     if epc_value:
         try:
             epc_value = float(epc_value)
         except (ValueError, TypeError):
             epc_value = None
 
-    # Overige velden
-    orientation = prop.get("orientation") or raw.get("orientation") or ""
-    cadastral_income = (
-        transaction.get("sale", {}).get("cadastralIncome")
-        if isinstance(transaction.get("sale"), dict) else None
-    ) or raw.get("cadastralIncome")
+    # === OVERIG ===
+    orientation = prop.get("orientation") or ""
+    cadastral_income = sale.get("cadastralIncome") if isinstance(sale, dict) else None
 
+    # Overstromingszone
+    construction_permit = prop.get("constructionPermit", {})
     flood_zone = (
-        prop.get("flooding", {}).get("floodZoneType")
-        if isinstance(prop.get("flooding"), dict) else None
-    ) or raw.get("floodZoneType") or "NON_FLOOD_ZONE"
+        construction_permit.get("floodZoneType")
+        if isinstance(construction_permit, dict) else "NON_FLOOD_ZONE"
+    ) or "NON_FLOOD_ZONE"
 
-    facade_count = building.get("facadeCount") or raw.get("facadeCount")
-    facade_width = building.get("facadeWidth") or raw.get("facadeWidth")
+    facade_count = building.get("facadeCount")
+    facade_width = building.get("streetFacadeWidth") or building.get("facadeWidth")
 
     description = prop.get("description") or raw.get("description") or ""
 
-    # Foto's
+    # === FOTO'S ===
     photos = []
     media = raw.get("media", {})
     if isinstance(media, dict):
-        for pic in media.get("pictures", []):
-            url = pic.get("url") or pic.get("mediumUrl") or ""
-            if url:
-                photos.append(url)
-    if not photos:
-        # Probeer plat formaat
-        for key in ("imageUrl", "ImageUrl", "mainImage", "pictureUrl"):
-            if raw.get(key):
-                photos.append(raw[key])
-                break
+        pics = media.get("pictures", {})
+        if isinstance(pics, dict):
+            # Dict formaat: {hash: url_string}
+            for key, val in pics.items():
+                if isinstance(val, str) and val.startswith("http"):
+                    photos.append(val)
+        elif isinstance(pics, list):
+            for pic in pics:
+                if isinstance(pic, str):
+                    photos.append(pic)
+                elif isinstance(pic, dict):
+                    url = pic.get("url") or pic.get("mediumUrl") or ""
+                    if url:
+                        photos.append(url)
 
-    # URL
-    listing_url = raw.get("url") or raw.get("Url") or raw.get("classifiedUrl") or ""
+    # === URL ===
+    listing_url = raw.get("SEOUrl") or raw.get("url") or raw.get("classifiedUrl") or ""
+    listing_id = raw.get("id")
 
-    # Publicatiedatum
+    # === PUBLICATIE ===
     pub = raw.get("publication", {})
-    pub_date = (
-        pub.get("creationDate") if isinstance(pub, dict) else None
-    ) or raw.get("publicationDate") or ""
+    pub_date = pub.get("activationDate", "") if isinstance(pub, dict) else ""
 
     # Makelaar
     customers = raw.get("customers", [])
@@ -329,7 +348,7 @@ def _normalize_immoweb_item(raw: dict) -> dict | None:
         "has_garden": bool(has_garden),
         "garden_area": float(garden_area or 0),
         "parking_type": parking_type,
-        "parking_count": parking_count,
+        "parking_count": int(parking_total or 0),
         "has_basement": bool(has_basement),
         "epc_score": str(epc_score).upper() if epc_score else "",
         "epc_value": epc_value,
