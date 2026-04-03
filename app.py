@@ -59,43 +59,43 @@ def _inject_theme_css():
     }
     .main .block-container { max-width: 1400px !important; }
 
-    /* === SIDEBAR — modern dark slate === */
+    /* === SIDEBAR — licht thema === */
     section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #1E1E2E 0%, #151521 100%) !important;
-        border-right: none !important;
+        background: #F3F0EC !important;
+        border-right: 1px solid rgba(0,0,0,0.06) !important;
     }
     section[data-testid="stSidebar"] .stMarkdown,
     section[data-testid="stSidebar"] p,
     section[data-testid="stSidebar"] label,
     section[data-testid="stSidebar"] .stCaption p,
     section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
-        color: #CBD5E1 !important;
+        color: #1A1A2E !important;
     }
     section[data-testid="stSidebar"] h1,
     section[data-testid="stSidebar"] h2,
     section[data-testid="stSidebar"] h3 {
-        color: #F1F5F9 !important;
+        color: #1A1A2E !important;
     }
     section[data-testid="stSidebar"] .stTextInput input,
     section[data-testid="stSidebar"] .stNumberInput input,
     section[data-testid="stSidebar"] .stTextArea textarea,
     section[data-testid="stSidebar"] input {
-        background: rgba(255,255,255,0.08) !important;
-        border: 1px solid rgba(255,255,255,0.12) !important;
+        background: #FFFFFF !important;
+        border: 1.5px solid rgba(0,0,0,0.12) !important;
         border-radius: 12px !important;
-        color: #F1F5F9 !important;
-        -webkit-text-fill-color: #F1F5F9 !important;
+        color: #1A1A2E !important;
+        -webkit-text-fill-color: #1A1A2E !important;
     }
     section[data-testid="stSidebar"] input::placeholder {
-        color: rgba(241,245,249,0.4) !important;
-        -webkit-text-fill-color: rgba(241,245,249,0.4) !important;
+        color: #94A3B8 !important;
+        -webkit-text-fill-color: #94A3B8 !important;
     }
     section[data-testid="stSidebar"] [data-baseweb="select"] > div {
-        background: rgba(255,255,255,0.06) !important;
-        border: 1px solid rgba(255,255,255,0.08) !important;
+        background: #FFFFFF !important;
+        border: 1.5px solid rgba(0,0,0,0.12) !important;
         border-radius: 12px !important;
     }
-    section[data-testid="stSidebar"] [data-baseweb="select"] span { color: #F1F5F9 !important; }
+    section[data-testid="stSidebar"] [data-baseweb="select"] span { color: #1A1A2E !important; }
     section[data-testid="stSidebar"] .stButton > button {
         background: linear-gradient(135deg, #E8956A, #D4764A) !important;
         color: white !important; border: none !important;
@@ -103,8 +103,8 @@ def _inject_theme_css():
         box-shadow: 0 4px 12px rgba(232,149,106,0.3) !important;
     }
     section[data-testid="stSidebar"] [data-testid="stDownloadButton"] button {
-        background: rgba(255,255,255,0.06) !important;
-        color: #CBD5E1 !important; border: 1px solid rgba(255,255,255,0.08) !important;
+        background: #FFFFFF !important;
+        color: #1A1A2E !important; border: 1.5px solid rgba(0,0,0,0.12) !important;
     }
 
     /* === BUTTONS === */
@@ -214,7 +214,7 @@ def _inject_theme_css():
         .stApp [style*="background:#F3F0EC"] { background-color: #1A1A2E !important; }
         [data-testid="stSpinner"] p { color: #94A3B8 !important; }
         section[data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #0A0A18 0%, #060612 100%) !important;
+            background: #1A1A2E !important;
         }
         """
     else:
@@ -883,7 +883,7 @@ def main():
 
     # === SIDEBAR ===
     st.sidebar.markdown(
-        "<h2 style='color: #F1F5F9; margin-bottom: 0; font-family: Inter, sans-serif; font-weight: 700;'>"
+        "<h2 style='color: #1A1A2E; margin-bottom: 0; font-family: Inter, sans-serif; font-weight: 700;'>"
         "Nymos Flip Analyzer</h2>"
         "<p style='color: #E8956A; font-size: 0.9em; margin-top: 4px; font-family: Inter, sans-serif;'>"
         "Vastgoed Investeringsanalyse</p>",
