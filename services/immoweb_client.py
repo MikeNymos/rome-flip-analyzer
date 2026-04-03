@@ -105,12 +105,34 @@ def run_immoweb_scraper(api_key: str, url: str, max_results: int = 100) -> list[
         st.warning("Geen resultaten gevonden van Immoweb.")
         return []
 
+    # Check voor rate-limit of foutmeldingen van de actor
+    if len(raw_items) == 1 and isinstance(raw_items[0], dict) and "message" in raw_items[0]:
+        msg = raw_items[0]["message"]
+        if "rate limit" in msg.lower() or "limit" in msg.lower():
+            raise Exception(
+                f"Apify rate-limit: {msg}\n\n"
+                "De gratis Apify versie staat slechts 1 run per 30 minuten toe voor deze actor. "
+                "Wacht 20-30 minuten en probeer opnieuw, of upgrade naar een betaald Apify-plan."
+            )
+        raise Exception(f"Actor fout: {msg}")
+
     # Normaliseer items
     listings = []
+    skipped = 0
     for item in raw_items:
         normalized = _normalize_immoweb_item(item)
         if normalized:
             listings.append(normalized)
+        else:
+            skipped += 1
+
+    if skipped > 0 and not listings:
+        st.warning(
+            f"Alle {skipped} listings konden niet worden genormaliseerd. "
+            "Mogelijk is het dataformaat gewijzigd."
+        )
+    elif skipped > 0:
+        st.caption(f"{skipped} listings overgeslagen (onvolledige data).")
 
     return listings
 
