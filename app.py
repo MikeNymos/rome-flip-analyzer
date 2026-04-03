@@ -577,12 +577,47 @@ def _render_be_dashboard(listings: list[dict], params: dict):
         st.metric("Beste deal", f"Score: {best.get('flip_score', 0)}")
 
     st.divider()
-    st.subheader("Alle Panden")
+
+    # Sorteeropties
+    BE_SORT_OPTIONS = {
+        "Flip Score (hoog → laag)": ("flip_score", True),
+        "Flip Score (laag → hoog)": ("flip_score", False),
+        "Prijs (laag → hoog)": ("price", False),
+        "Prijs (hoog → laag)": ("price", True),
+        "Prijs/m² (laag → hoog)": ("price_per_sqm", False),
+        "Prijs/m² (hoog → laag)": ("price_per_sqm", True),
+        "ROI (hoog → laag)": ("roi", True),
+        "ROI (laag → hoog)": ("roi", False),
+        "Winst (hoog → laag)": ("gross_profit", True),
+        "Winst (laag → hoog)": ("gross_profit", False),
+        "Oppervlakte (groot → klein)": ("living_area", True),
+        "Oppervlakte (klein → groot)": ("living_area", False),
+    }
+
+    sort_col, header_col = st.columns([1, 2])
+    with header_col:
+        st.subheader("Alle Panden")
+    with sort_col:
+        sort_label = st.selectbox(
+            "Sorteren op",
+            list(BE_SORT_OPTIONS.keys()),
+            index=0,
+            key="be_dashboard_sort",
+        )
+    sort_field, sort_reverse = BE_SORT_OPTIONS[sort_label]
+
+    def _sort_val(item):
+        val = item.get(sort_field)
+        if val is None:
+            return (1, 0)
+        return (0, -val) if sort_reverse else (0, val)
+
+    sorted_listings = sorted(listings, key=_sort_val)
 
     # Property cards
     COLS = 3
-    for row_start in range(0, len(listings), COLS):
-        row = listings[row_start:row_start + COLS]
+    for row_start in range(0, len(sorted_listings), COLS):
+        row = sorted_listings[row_start:row_start + COLS]
         cols = st.columns(COLS)
         for col_idx, listing in enumerate(row):
             with cols[col_idx]:
