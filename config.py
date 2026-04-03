@@ -137,4 +137,76 @@ def get_score_label(score: int) -> tuple[str, str, str]:
     for (low, high), (label, color, meaning) in SCORE_LABELS.items():
         if low <= score < high:
             return label, color, meaning
-    return "★ Slecht", "#c0392b", "Afwijzen"
+    return "Slecht", "#EF4444", "Afwijzen"
+
+
+# =============================================================================
+# BELGISCHE PARAMETERS
+# =============================================================================
+
+DEFAULT_PARAMS_BE = {
+    # Regio
+    "region": "VLAANDEREN",
+    # Onderhandeling
+    "negotiation_margin": 0.05,        # 5% (7-10% voor te renoveren)
+    # Fiscaal
+    "registration_tax_rate": 0.06,     # 6% beroepsverkoper Vlaanderen
+    # Financiering
+    "ltv": 0.80,                       # 80% loan-to-value
+    "interest_rate": 0.045,            # 4.5%/jaar
+    # Makelaar
+    "agent_sell_pct": 0.03,            # 3% + 21% BTW = 3.63% effectief
+    "agent_buy_pct": 0.00,            # 0% (standaard in België)
+    # Renovatie
+    "interior_architect_cost": 2000,   # €2.000 vast
+    "contingency_pct": 0.10,          # 10% onvoorzien
+    # Holding costs
+    "holding_cost_apt": 500,           # €500/maand appartement
+    "holding_cost_house": 350,         # €350/maand huis
+    # Drempels
+    "min_roi": 0.20,                   # 20% minimum ROI
+    "min_flip_score": 60,             # Minimum flip score
+    # Vraagprijs → verkoopprijs correctie
+    "asking_to_sale_correction": 0.96, # 96% van vraagprijs
+    # Filters
+    "min_surface_m2": 40,
+    "max_surface_m2": 250,
+    "min_price": 100000,
+    "max_price": 600000,
+}
+
+PARAM_DESCRIPTIONS_BE = {
+    "region": ("Regio", "Vlaanderen (6%), Brussel (8%) of Wallonië (5%) registratierechten"),
+    "negotiation_margin": ("Onderhandelingsmarge", "Verwachte korting op vraagprijs (5% standaard, 7-10% bij te renoveren)"),
+    "registration_tax_rate": ("Registratierechten", "6% beroepsverkoper Vlaanderen, 8% Brussel, 5% Wallonië"),
+    "ltv": ("Financieringspercentage (LTV)", "Percentage van aankoopprijs gefinancierd via lening"),
+    "interest_rate": ("Rentevoet", "Jaarlijkse rente op hypothecaire lening"),
+    "agent_sell_pct": ("Makelaarscommissie verkoop", "3% exclusief BTW (effectief 3,63% incl. BTW)"),
+    "agent_buy_pct": ("Makelaarscommissie aankoop", "Standaard 0% in België"),
+    "interior_architect_cost": ("Binnenhuisarchitect", "Vast bedrag in EUR"),
+    "contingency_pct": ("Onvoorziene kosten", "Percentage van renovatiekost voor onvoorzien"),
+    "holding_cost_apt": ("Holding cost appartement", "Maandelijkse kosten (OV, verzekering, syndicus, nutsvoorzieningen)"),
+    "holding_cost_house": ("Holding cost huis", "Maandelijkse kosten (OV, verzekering, nutsvoorzieningen)"),
+    "min_roi": ("Minimale ROI drempel", "Onder deze ROI = rode vlag"),
+    "min_flip_score": ("Minimale Flip Score", "Onder deze score = rode vlag"),
+    "min_surface_m2": ("Min. oppervlakte (m²)", "Minimum bewoonbare oppervlakte"),
+    "max_surface_m2": ("Max. oppervlakte (m²)", "Maximum bewoonbare oppervlakte"),
+    "min_price": ("Min. prijs (€)", "Minimum aankoopprijs filter"),
+    "max_price": ("Max. prijs (€)", "Maximum aankoopprijs filter"),
+}
+
+# Score labels (zelfde kleurenschema als Rome)
+SCORE_LABELS_BE = {
+    (90, 101): ("Uitstekend", "#10B981", "Topkandidaat, direct actie ondernemen"),
+    (75, 90): ("Goed", "#34D399", "Sterke investering, nader onderzoek aanbevolen"),
+    (60, 75): ("Redelijk", "#F59E0B", "Potentieel maar met aandachtspunten"),
+    (40, 60): ("Matig", "#F97316", "Alleen interessant bij onderhandeling of specifieke kennis"),
+    (0, 40): ("Afwijzen", "#EF4444", "Niet aanbevolen als flip-investering"),
+}
+
+def get_score_label_be(score: int) -> tuple[str, str, str]:
+    """Retourneert (label, kleur, betekenis) voor een Belgische flip score."""
+    for (low, high), (label, color, meaning) in SCORE_LABELS_BE.items():
+        if low <= score < high:
+            return label, color, meaning
+    return "Afwijzen", "#EF4444", "Niet aanbevolen"
