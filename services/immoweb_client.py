@@ -14,7 +14,7 @@ from data.neighborhoods_be import FOCUS_POSTCODES
 from data.constants_be import CONDITION_MAP_BE
 
 APIFY_BASE_URL = "https://api.apify.com/v2"
-IMMOWEB_ACTOR_ID = "azzouzana/immoweb-be-mass-scraper-by-search-url"
+IMMOWEB_ACTOR_ID = "azzouzana~immoweb-be-mass-scraper-by-search-url"
 
 
 def run_immoweb_scraper(api_key: str, url: str, max_results: int = 100) -> list[dict]:
@@ -36,7 +36,7 @@ def run_immoweb_scraper(api_key: str, url: str, max_results: int = 100) -> list[
         raise ValueError("Ongeldige Immoweb URL. Verwacht: https://www.immoweb.be/nl/zoeken/...")
 
     run_input = {
-        "startUrls": [url],
+        "startUrl": url,
         "maxItems": max_results,
     }
 
