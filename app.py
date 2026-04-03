@@ -890,19 +890,20 @@ def main():
         unsafe_allow_html=True,
     )
 
-    # Country selector
-    country = st.sidebar.radio(
-        "Markt",
-        ["🇮🇹 Rome", "🇧🇪 België"],
+    # Country selector — duidelijk zichtbaar als selectbox
+    st.sidebar.divider()
+    country_choice = st.sidebar.selectbox(
+        "Selecteer markt",
+        ["🇮🇹 Rome (Italië)", "🇧🇪 Antwerpen (België)"],
         index=0 if st.session_state.get("country", "IT") == "IT" else 1,
-        key="country_radio",
-        horizontal=True,
+        key="country_select",
     )
-    new_country = "BE" if "België" in country else "IT"
+    new_country = "BE" if "België" in country_choice else "IT"
     if new_country != st.session_state.get("country", "IT"):
         st.session_state["country"] = new_country
         st.rerun()
     st.session_state["country"] = new_country
+    st.sidebar.divider()
 
     # Dark mode toggle
     dark_mode = st.sidebar.toggle(
