@@ -23,7 +23,7 @@ def render_property_detail(listing: dict, analysis: dict, score_data: dict, para
     """Rendert de volledige analyse voor een individueel pand."""
 
     # === 1. FOTO'S + HEADER ===
-    _render_photo_gallery(listing)
+    render_photo_gallery(listing)
     _render_header(listing, score_data)
 
     st.divider()
@@ -99,7 +99,7 @@ def render_property_detail(listing: dict, analysis: dict, score_data: dict, para
 # FOTO GALERIJ
 # ============================================================
 
-def _render_photo_gallery(listing: dict):
+def render_photo_gallery(listing: dict):
     """Toont een interactieve fotogalerij met pijlnavigatie en thumbnail-strip."""
     images = listing.get("images", [])
     if not images:

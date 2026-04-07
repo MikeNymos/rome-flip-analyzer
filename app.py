@@ -504,6 +504,11 @@ def _run_belgium_flow(params_rome: dict, user: dict | None, auth_enabled: bool):
     # --- TAB 2: PAND DETAIL ---
     elif active_tab == "Pand Detail":
         if analyzed:
+            # Terug-knop
+            if st.button("← Terug naar dashboard", key="be_back_to_dash"):
+                st.session_state["active_tab_be"] = "Dashboard"
+                st.rerun()
+
             options = [
                 f"#{i+1} — Score {l.get('flip_score', 0)} — {l.get('zone', '?')} — {format_eur(l['price'])}"
                 for i, l in enumerate(analyzed)
@@ -679,7 +684,11 @@ def _render_be_property_detail(listing: dict, params: dict):
     from models.financial_be import calculate_investment_analysis_be, calculate_sensitivity_be
     from models.scoring_be import calculate_flip_score_be
     from data.constants_be import CONDITION_LABELS_BE
+    from components.property_detail import render_photo_gallery
     import plotly.graph_objects as go
+
+    # === FOTO GALERIJ ===
+    render_photo_gallery(listing)
 
     analysis = listing.get("analysis", {})
     score_data = listing.get("score_data", {})
