@@ -137,6 +137,18 @@ def run_immoweb_scraper(api_key: str, url: str, max_results: int = 100) -> list[
     return listings
 
 
+def _build_zone_name(municipality: str, postal_code: str) -> str:
+    """Bouwt een zone-naam zonder dubbele postcodes."""
+    muni = municipality.strip() if municipality else ""
+    pc = postal_code.strip() if postal_code else ""
+    # Voorkom "Antwerpen (2000) (2000)" als municipality al de postcode bevat
+    if pc and pc in muni:
+        return muni
+    if muni and pc:
+        return f"{muni} ({pc})"
+    return muni or pc or "Onbekend"
+
+
 def _normalize_immoweb_item(raw: dict) -> dict | None:
     """
     Normaliseert een Immoweb listing (van azzouzana actor) naar intern formaat.
@@ -300,13 +312,25 @@ def _normalize_immoweb_item(raw: dict) -> dict | None:
     if isinstance(media, dict):
         pics = media.get("pictures", {})
         if isinstance(pics, dict):
-            # Dict formaat: {hash: url_string}
-            for key, val in pics.items():
-                if isinstance(val, str) and val.startswith("http"):
-                    photos.append(val)
+            # Azzouzana actor formaat:
+            # {"baseUrl": "https://.../{uuid}/", "count": 15, "items": [{"relativeUrl": {"large": "736x736/hash.jpg"}}]}
+            base_url = pics.get("baseUrl", "")
+            pic_items = pics.get("items", [])
+            if base_url and isinstance(pic_items, list):
+                for pic_item in pic_items[:20]:  # max 20 foto's
+                    if isinstance(pic_item, dict):
+                        rel = pic_item.get("relativeUrl", {})
+                        if isinstance(rel, dict):
+                            # Gebruik 'large' formaat, fallback naar andere formaten
+                            rel_url = rel.get("large") or rel.get("extralarge") or rel.get("small") or ""
+                            if rel_url:
+                                photos.append(f"{base_url}{rel_url}")
+            # Fallback: als baseUrl zelf een afbeelding is
+            if not photos and base_url:
+                photos.append(base_url)
         elif isinstance(pics, list):
             for pic in pics:
-                if isinstance(pic, str):
+                if isinstance(pic, str) and pic.startswith("http"):
                     photos.append(pic)
                 elif isinstance(pic, dict):
                     url = pic.get("url") or pic.get("mediumUrl") or ""
@@ -355,7 +379,7 @@ def _normalize_immoweb_item(raw: dict) -> dict | None:
         "postal_code": postal_code,  # alias
         "address_municipality": municipality,
         "municipality": municipality,  # alias
-        "zone": f"{municipality} ({postal_code})" if municipality else postal_code,
+        "zone": _build_zone_name(municipality, postal_code),
         "property_type": prop_type.upper() if prop_type else "APARTMENT",
         "property_subtype": prop_subtype,
         "condition": condition,
